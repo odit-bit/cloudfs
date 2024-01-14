@@ -1,4 +1,4 @@
-demo project web-based app file storage
+# Demo implementation of distributed file storage
 
 the architecture is rather simple , it use postgres for store user account and minio for blob store  
 
