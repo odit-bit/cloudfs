@@ -58,7 +58,6 @@ const indexPage_template = `<!DOCTYPE html>
 <body>
 
 
-<h2>Menu</h2>
 <p></p>
 
 <ul>

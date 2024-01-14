@@ -55,7 +55,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: oditbit/cloudfs-web
+    # image: oditbit/cloudfs-web
     depends_on:
       - minio1
       - postgres
