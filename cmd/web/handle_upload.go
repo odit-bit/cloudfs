@@ -6,7 +6,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/odit-bit/cloudfs/internal/ui"
@@ -62,7 +61,6 @@ func (app *api) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// save blob into storage
 	res, err := app.blobStorage.PutObject(r.Context(), userID, header.Filename, file, header.Size, minio.PutObjectOptions{
 		ContentType: fileType,
-		Expires:     time.Now().Add(5 * time.Minute),
 	})
 
 	if err != nil {
