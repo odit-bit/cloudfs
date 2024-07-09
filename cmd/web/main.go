@@ -44,7 +44,7 @@ func connectMinio(endpoint, accessKeyID, secretAccessKey string, secure bool) (*
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	var sessionTokenSecret, userDBEndpoint string
