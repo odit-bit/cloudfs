@@ -3,6 +3,10 @@ package ui
 import (
 	"html/template"
 	"io"
+	"time"
+
+	"github.com/dustin/go-humanize"
+	"github.com/odit-bit/cloudfs/internal/blob"
 )
 
 // const listPage_template = `
@@ -119,9 +123,12 @@ const listDataTable_template = `
 	<table>
 		{{range .Data}}
 			<tr>
-				<td>{{.Name}}</td>
-				<td>{{.Size}} byte</td>
-				<td><a href="{{$.DownloadEndpoint}}?filename={{.Name}}" download>Download File</a></td>
+				<td>{{.ObjName}}</td>
+				<td>{{toBytes .Size}}</td>
+				<td>{{.ContentType}}</td>
+				<td><a href="{{$.DownloadEndpoint}}?filename={{.ObjName}}" download>Download</a></td>
+				<td>{{toDate .LastModified}}</td>
+				<td>MD5 {{.Sum}}</td>
 			</tr>
 		{{else}} 
 			<td>No data</td>
@@ -132,27 +139,34 @@ const listDataTable_template = `
 
 `
 
-var listDataTable = template.Must(template.New("listResult.html").Parse(listDataTable_template))
-
-type ListData struct {
-	Name      string
-	Size      int64
-	SharedURL string `json:"url,omitempty"`
+var fm = template.FuncMap{
+	"toDate":  func(t time.Time) string { return humanize.Time(t) },
+	"toBytes": func(n int64) string { return humanize.Bytes(uint64(n)) },
 }
+var listDataTable = template.Must(template.New("listResult.html").Funcs(fm).Parse(listDataTable_template))
+
+// type ListData struct {
+// 	Name      string
+// 	Size      int64
+// 	Type      string
+// 	Hash      string
+// 	SharedURL string `json:"url,omitempty"`
+// }
 
 type listComponent struct {
-	Data             []*ListData
+	Data             []*blob.ObjectInfo
 	DownloadEndpoint string
 }
 
 // dlEndpoint is base endpoint to download individual data , getEndpoint to get the list of data
-func RenderListResult(w io.Writer, list []*ListData, dlEndpoint string) error {
+func RenderListResult(w io.Writer, list []*blob.ObjectInfo, dlEndpoint string) error {
 	if list == nil {
-		list = []*ListData{}
+		list = []*blob.ObjectInfo{}
 	}
 	lc := listComponent{
 		Data:             list,
 		DownloadEndpoint: dlEndpoint,
 	}
+
 	return listDataTable.Execute(w, lc)
 }

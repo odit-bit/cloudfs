@@ -1,0 +1,12 @@
+http:
+  host: "localhost"
+  port: 8181
+storage:
+  blob:
+    endpoint: "127.0.0.1:9000" #minio endpoint
+    accessKey: "admin"
+    secretKey: "admin12345"
+  user:
+    uri: "postgres://admin:admin@localhost/postgres" #postgres
+session:
+  token: "my-token-secret"

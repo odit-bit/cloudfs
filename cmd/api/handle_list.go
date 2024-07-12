@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/minio/minio-go/v7"
+	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/internal/ui"
 )
 
@@ -22,7 +22,7 @@ func (app *api) serveListPage(serviceEndpoint string) http.HandlerFunc {
 // render html page with injected list data
 func (app *api) HandleList(w http.ResponseWriter, r *http.Request) {
 	// validate session
-	userID, err := app.getUserID(r)
+	userID, err := app.getUserIDFromCookie(r)
 	if err != nil {
 		//redirect into loginHTML
 		log.Printf("%s:%s \n", listAPIEndpoint, err)
@@ -30,27 +30,14 @@ func (app *api) HandleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := app.blobStorage.ListObjects(r.Context(), userID, minio.ListObjectsOptions{})
 	ctx := r.Context()
-	var list []*ui.ListData
-	for {
-		select {
-		case <-ctx.Done():
-		case info, ok := <-c:
-			if ok {
-				if info.Err == nil {
-					ld := ui.ListData{
-						Name:      info.Key,
-						Size:      info.Size,
-						SharedURL: "",
-					}
-					list = append(list, &ld)
-					continue
-				}
+	c := app.blobStorage.List(ctx, userID, 100, "")
+	var list []*blob.ObjectInfo
 
-			}
-		}
-		break
+	for c.Next() {
+		var info blob.ObjectInfo
+		c.Scan(&info)
+		list = append(list, &info)
 	}
 
 	if err := ui.RenderListResult(w, list, "/api/download"); err != nil {

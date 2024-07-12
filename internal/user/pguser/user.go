@@ -22,10 +22,10 @@ type DB struct {
 // dbURL := "postgres://username:password@localhost:5432/database_name"
 func ConnectDefault(ctx context.Context, username, password, dbName string) (*DB, error) {
 	uri := fmt.Sprintf("postgres://%v:%v@%v:%d/%v", username, password, default_host, default_port, dbName)
-	return ConnectDB(ctx, uri)
+	return NewDB(ctx, uri)
 }
 
-func ConnectDB(ctx context.Context, uri string) (*DB, error) {
+func NewDB(ctx context.Context, uri string) (*DB, error) {
 	db, err := sql.Open("pgx", uri)
 	if err != nil {
 		return nil, err

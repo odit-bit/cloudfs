@@ -1,26 +1,22 @@
 package main
 
 import (
-	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"sync"
 
-	"github.com/minio/minio-go/v7"
 	"github.com/odit-bit/cloudfs/internal/ui"
 )
 
 func (app *api) serveUploadPage(serviceEndpoint string) http.HandlerFunc {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := app.getUserID(r)
+		_, err := app.getUserIDFromCookie(r)
 		if err != nil {
-			if err != nil {
-				//redirect into loginHTML
-				log.Printf("%s:%s \n", uploadAPIEndpoint, err)
-				http.Redirect(w, r, loginHTML, http.StatusFound)
-				return
-			}
+			//redirect into loginHTML
+			log.Printf("%s:%s \n", uploadAPIEndpoint, err)
+			http.Redirect(w, r, loginHTML, http.StatusFound)
+			return
 		}
 		if err := ui.RenderUploadPage(w, serviceEndpoint); err != nil {
 			http.Error(w, err.Error(), 500)
@@ -31,14 +27,12 @@ func (app *api) serveUploadPage(serviceEndpoint string) http.HandlerFunc {
 }
 
 func (app *api) handleUpload(w http.ResponseWriter, r *http.Request) {
-	userID, err := app.getUserID(r)
+	userID, err := app.getUserIDFromCookie(r)
 	if err != nil {
-		if err != nil {
-			//redirect into loginHTML
-			log.Printf("%s:%s \n", uploadAPIEndpoint, err)
-			http.Redirect(w, r, loginHTML, http.StatusFound)
-			return
-		}
+		//redirect into loginHTML
+		log.Printf("%s:%s \n", uploadAPIEndpoint, err)
+		http.Redirect(w, r, loginHTML, http.StatusFound)
+		return
 	}
 
 	// parse file from request
@@ -49,20 +43,7 @@ func (app *api) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-
-	fileType, err := getFileType(header)
-	if err != nil {
-		log.Println("ulalal: ", err)
-	}
-	if fileType == "" {
-		fileType = "application/octetstream"
-	}
-
-	// save blob into storage
-	res, err := app.blobStorage.PutObject(r.Context(), userID, header.Filename, file, header.Size, minio.PutObjectOptions{
-		ContentType: fileType,
-	})
-
+	_, err = app.blobStorage.Put(r.Context(), userID, header.Filename, file, header.Size, header.Header.Get("Content-Type"))
 	if err != nil {
 		log.Printf("%v: %v \n", uploadAPIEndpoint, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -70,7 +51,7 @@ func (app *api) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	io.WriteString(w, res.ETag)
+	w.Write([]byte("success"))
 }
 
 // =====================

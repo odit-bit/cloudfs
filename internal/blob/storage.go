@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync"
+	"net/http"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -13,81 +13,32 @@ import (
 
 const DefaultEndpoint = "127.0.0.1:9000"
 
-var riPool = sync.Pool{
-	New: func() any {
-		var ri RetreiveInfo
-		return &ri
-	},
-}
-
 // object represent
-type RetreiveInfo struct {
+type ObjectInfo struct {
 	UserID       string
 	ObjName      string
 	ContentType  string
 	Sum          string
 	Size         int64
 	LastModified time.Time
-	Reader       io.ReadCloser `json:"_"`
+	reader       io.ReadCloser
 }
 
-func (ri *RetreiveInfo) Reset() {
-	ri.UserID = ""
-	ri.ObjName = ""
-	ri.ContentType = ""
-	ri.Sum = ""
-	ri.Size = 0
-	ri.LastModified = time.Time{}
-	ri.Reader = nil
-	riPool.Put(ri)
+func (oi *ObjectInfo) Reader() io.Reader {
+	return oi.reader
 }
 
-// var prPool = sync.Pool{
-// 	New: func() any {
-// 		var pr putRequest
-// 		return &pr
-// 	},
-// }
-
-// func NewPutRequest() *putRequest {
-// 	pr := prPool.Get().(*putRequest)
-// 	return pr
-// }
-
-// type putRequest struct {
-// 	UserID      string
-// 	ObjName     string
-// 	ContentType string
-// 	Size        int64
-// 	Reader      io.Reader
-// }
-
-// func (pr *putRequest) Close() {
-// 	pr.UserID = ""
-// 	pr.ObjName = ""
-// 	pr.ContentType = ""
-// 	pr.Size = 0
-// 	pr.Reader = nil
-
-// 	prPool.Put(pr)
-// }
+func (oi *ObjectInfo) Close() error {
+	return oi.reader.Close()
+}
 
 type Result struct {
 	Sum       string
 	Timestamp time.Time
 }
 
-// represent blob storage
-type Storage struct {
-	minioCli *minio.Client
-}
-
-func NewStorage(addr, key, secret string) (*Storage, error) {
-	endpoint := addr          //"localhost:9000"
-	accessKeyID := key        //"admin"          //"i4mZYsUZpPG9bFXwWRMI"
-	secretAccessKey := secret //"admin12345" //"JyNWoAsAzf7KCdSiqTHfzMWtix862PGvnTpKeYCp"
-	secure := false
-
+func connectMinio(endpoint, accessKeyID, secretAccessKey string, secure bool) (*minio.Client, error) {
+	fmt.Println(endpoint, accessKeyID, secretAccessKey)
 	cli, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: secure,
@@ -96,7 +47,7 @@ func NewStorage(addr, key, secret string) (*Storage, error) {
 		return nil, err
 	}
 
-	cancel, err := cli.HealthCheck(2 * time.Second)
+	cancel, err := cli.HealthCheck(5 * time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -106,21 +57,44 @@ func NewStorage(addr, key, secret string) (*Storage, error) {
 		return nil, fmt.Errorf("storage endpoint is offline, api-endpoint: %v", cli.EndpointURL().String())
 	}
 
+	// if err := cli.MakeBucket(context.TODO(), "init-bucket", minio.MakeBucketOptions{}); err != nil {
+	// 	panic(err)
+	// }
+
+	return cli, nil
+
+}
+
+// represent blob storage
+type Storage struct {
+	minioCli *minio.Client
+}
+
+func NewStorage(addr, key, secret string) (*Storage, error) {
+	// 	endpoint := addr          //"localhost:9000"
+	// 	accessKeyID := key        //"admin"          //"i4mZYsUZpPG9bFXwWRMI"
+	// 	secretAccessKey := secret //"admin12345" //"JyNWoAsAzf7KCdSiqTHfzMWtix862PGvnTpKeYCp"
+	// secure := false
+
+	minioCli, err := connectMinio(addr, key, secret, false)
+	if err != nil {
+		return nil, err
+	}
+
 	bs := Storage{
-		minioCli: cli,
+		minioCli: minioCli,
 	}
 	return &bs, nil
 }
 
-// check if bucket exist, if not it will create new One
-func (bs *Storage) MakeBucket(ctx context.Context, userID string) error {
-	ok, err := bs.minioCli.BucketExists((ctx), userID)
+func (s *Storage) CreateBucket(ctx context.Context, bucketName string) error {
+	ok, err := s.minioCli.BucketExists((ctx), bucketName)
 	if err != nil {
 		return err
 	}
 
 	if !ok {
-		err := bs.minioCli.MakeBucket(ctx, userID, minio.MakeBucketOptions{
+		err := s.minioCli.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{
 			Region: "arab-selatan",
 		})
 		if err != nil {
@@ -131,80 +105,45 @@ func (bs *Storage) MakeBucket(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (bs *Storage) Retreive(ctx context.Context, userID string, objName string) (*RetreiveInfo, error) {
-
-	obj, err := bs.minioCli.GetObject(ctx, userID, objName, minio.GetObjectOptions{
-		ServerSideEncryption: nil,
-		VersionID:            "",
-		PartNumber:           0,
-		Checksum:             false,
-		Internal:             minio.AdvancedGetOptions{},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	stat, err := obj.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	ri := RetreiveInfo{
-		UserID:       userID,
-		ObjName:      objName,
-		ContentType:  stat.ContentType,
-		Sum:          stat.ETag,
-		Size:         stat.Size,
-		LastModified: stat.LastModified,
-		Reader:       obj,
-	}
-
-	return &ri, nil
+func (s *Storage) Put(ctx context.Context, userID, filename string, file io.Reader, size int64, contentType string) (any, error) {
+	return s.minioCli.PutObject(ctx, userID, filename, file, size, minio.PutObjectOptions{})
 }
 
-// save object from pr , if success return sum
-func (bs *Storage) Save(ctx context.Context, userID, ObjName, contentType string, size int64, r io.Reader) (string, error) {
-	info, err := bs.minioCli.PutObject(ctx, userID, ObjName, r, size, minio.PutObjectOptions{
-		ContentType: contentType,
-	})
+func (s *Storage) Get(ctx context.Context, bucketName, filename string, objInfo *ObjectInfo) error {
+	res, err := s.minioCli.GetObject(ctx, bucketName, filename, minio.GetObjectOptions{})
 	if err != nil {
-		return "", err
+		return err
 	}
+	defer res.Close()
 
-	return info.ETag, nil
+	stat, _ := res.Stat()
+	objInfo.UserID = stat.Owner.DisplayName
+	objInfo.ObjName = stat.Key
+	objInfo.ContentType = stat.ContentType
+	objInfo.Sum = stat.ChecksumSHA256
+	objInfo.Size = stat.Size
+	objInfo.LastModified = stat.LastModified
+	objInfo.reader = res
+
+	return nil
 }
 
-type ListConfig struct {
-	UserID string
-	Marker string
-	Max    int
-}
-
-// create a pagination-like request-response
-func (bs *Storage) List(ctx context.Context, userID string, max int, startFrom string) StoreIterator {
-
-	c := bs.minioCli.ListObjects(ctx, userID, minio.ListObjectsOptions{
-		WithVersions: false,
-		WithMetadata: false,
-		Prefix:       "",
-		Recursive:    false,
-		MaxKeys:      max,
-		StartAfter:   "",
-		UseV1:        false,
+func (s *Storage) List(ctx context.Context, bucketName string, limit int, lastKey string) *Cursor {
+	res := s.minioCli.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Prefix:     "",
+		MaxKeys:    limit,
+		StartAfter: lastKey,
 	})
 
-	iter := Iterator{
-		UserID:  userID,
-		listC:   c,
+	return &Cursor{
+		UserID:  bucketName,
+		listC:   res,
 		objInfo: &minio.ObjectInfo{},
 		err:     nil,
 	}
-
-	return &iter
-
 }
 
-type Iterator struct {
+type Cursor struct {
 	UserID  string
 	listC   <-chan minio.ObjectInfo
 	objInfo *minio.ObjectInfo
@@ -212,7 +151,7 @@ type Iterator struct {
 	err error
 }
 
-func (li *Iterator) Next() bool {
+func (li *Cursor) Next() bool {
 	objInfo, ok := <-li.listC
 	if !ok {
 		return false
@@ -226,30 +165,61 @@ func (li *Iterator) Next() bool {
 	return true
 }
 
-func (li *Iterator) Value() *RetreiveInfo {
+func (li *Cursor) Scan(info *ObjectInfo) {
+	if info == nil {
+		panic("storage cursor cannot scan into nil info")
+	}
 
-	ri := getRetrieveInfo()
-	ri.UserID = li.UserID
-	ri.ObjName = li.objInfo.Key
-	ri.ContentType = li.objInfo.ContentType
-	ri.Sum = li.objInfo.ETag
-	ri.Size = li.objInfo.Size
-	ri.LastModified = li.objInfo.LastModified
+	// fmt.Println("STORAGE CURSOR", li.objInfo)
+	info.UserID = li.UserID
+	info.ObjName = li.objInfo.Key
+	info.Sum = li.objInfo.ETag
+	info.Size = li.objInfo.Size
+	info.LastModified = li.objInfo.LastModified
 
 	li.objInfo = nil
-	return ri
 }
 
-func (li *Iterator) Error() error {
+func (li *Cursor) Error() error {
 	return li.err
 }
 
-func getRetrieveInfo() *RetreiveInfo {
-	ri := riPool.Get().(*RetreiveInfo)
-	return ri
-}
-
 // ====================
+
+func parseUploadRequest(userID string, minioClient *minio.Client, r *http.Request) (any, error) {
+	// size, err := strconv.ParseInt(r.Header.Get("Content-Length"), 10, 64)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return nil, err
+	}
+
+	part, err := reader.NextPart()
+	if err != nil {
+		return nil, err
+	}
+	defer part.Close()
+
+	if part.FormName() != "file" {
+		return nil, err
+	}
+
+	// save blob into storage
+	entry := minio.PutObjectFanOutEntry{
+		Key:         part.FileName(),
+		ContentType: part.Header.Get("content-type"),
+	}
+
+	_, err = minioClient.PutObjectFanOut(r.Context(), userID, part, minio.PutObjectFanOutRequest{
+		Entries: []minio.PutObjectFanOutEntry{entry},
+	})
+
+	return nil, err
+
+}
 
 // for testing
 

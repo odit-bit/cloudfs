@@ -12,6 +12,7 @@ type Account struct {
 	ID           uuid.UUID
 	Name         string
 	HashPassword string
+	Quota        int64
 }
 
 func CreateAccount(username, password string) *Account {

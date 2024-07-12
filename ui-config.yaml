@@ -1,0 +1,9 @@
+http:
+  host: localhost:8080 # host for this instance
+api:
+  scheme: http #http, https
+  host: localhost:8181 # host of remote api
+  List:
+    Path: "/api/list"
+  Upload:
+    Path: "/api/upload"

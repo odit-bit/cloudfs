@@ -90,7 +90,7 @@ func (lfs *localFS) Put(ctx context.Context, objName string, size int64, r io.Re
 
 }
 
-func (lfs *localFS) Get(ctx context.Context, ri *RetreiveInfo) (io.ReadCloser, uint32, error) {
+func (lfs *localFS) Get(ctx context.Context, ri *ObjectInfo) (io.ReadCloser, uint32, error) {
 	files := []*os.File{}
 	var getErr error
 	parts := lfs.indexSUM[ri.ObjName]
