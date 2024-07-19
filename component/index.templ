@@ -1,0 +1,184 @@
+package component
+
+templ Index(uploadURL, listViewURL string) {
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<script src="https://unpkg.com/htmx.org@1.9.9"></script>
+			<style>
+				body {
+					background-color: #f4f4f4;
+					margin-top: 50px;
+					justify-content: center;
+				}
+				
+				h2 {
+					text-align: center;
+				}
+
+				li {
+					float: left;
+				}
+			
+				li a {
+					display: block;
+					color: white;
+					text-align: center;
+					padding: 16px;
+					text-decoration: none;
+				}
+			
+				li a:hover {
+					background-color: #111111;
+				}
+			
+				ul {
+					list-style-type: none;
+					margin: 0;
+					padding: 0;
+					overflow: hidden;
+					background-color: #333333;
+				}
+				
+				.result{
+					display: flex;
+					justify-content: center;
+					margin-top: 20px;
+				}
+
+				table {
+					text-align: center;
+					border-collapse: collapse;
+					width: 100%;
+					margin: 0 auto;
+				}
+
+				th, td {
+					padding: 12px;
+					text-align: left;
+					border-bottom: 1px solid #DDD;
+				}
+
+				th {
+					background-color: #f2f2f2;
+					font-weight: bold;
+					text-transform: uppercase;
+				}
+
+				tr:hover {
+					background-color: #D6EEEE;
+				}
+
+				tr:nth-child(even) {
+					background-color: #f2f2f2;
+				}
+
+				a {
+					text-decoration: none;
+					color: #0066cc;
+				}
+
+				a:hover {
+					text-decoration: underline;
+				}
+
+				.upload{
+					text-align: center;
+					padding: 10px;
+					border: 1px solid #ccc;
+					margin-top: 20px;
+				}
+
+				form {
+					text-align: center;
+					margin-top: 20px;
+				}
+
+				/* Modal styles */
+				.modal {
+					display: none;
+					position: fixed;
+					top: 50%;
+					left: 50%;
+					transform: translate(-50%, -50%);
+					padding: 20px;
+					background-color: #fff;
+					border: 1px solid #ccc;
+					box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+					z-index: 1000;
+				}
+
+				tr.htmx-swapping td {
+				opacity: 0;
+				transition: opacity 1s ease-out;
+				}
+				.htmx-indicator{
+					display:none;
+				}
+				.htmx-request .htmx-indicator{
+					display:inline;
+				}
+				.htmx-request.htmx-indicator{
+					display:inline;
+				}
+
+			</style>
+		</head>
+		<body>
+			// <ul>
+			// 	for _, h := range attr.Headers {
+			// 		<li><a hx-get={ h.Endpoint } hx-target=".result" hx-trigger="click" hx-swap="innerHTML">{ h.Name }</a></li>
+			// 	}
+			// 	<li><a href="https://github.com/odit-bit/cloudfs" target="_blank" rel="noopener noreferrer">Github</a></li>
+			// </ul>
+			// <div class="result"></div>
+			// <div class="result" hx-get={ "/list" } hx-trigger="load" hx-swap="innerHTML"></div>
+			<div>
+				//TODO: make sticky
+				<div class="upload">
+					<form id="uploadForm" hx-encoding="multipart/form-data" hx-post={ uploadURL } hx-target="#responseModal" hx-on::after-request=" if(event.detail.successful) this.reset()">
+						<input type="file" name="file"/>
+						<input type="submit" value="Upload"/>
+						// <button onclick="htmx.trigger('#uploadForm', 'htmx:abort')">Cancel Request</button>
+						<progress id="progress" class="htmx-indicator" value="0" max="100"></progress>
+					</form>
+					// <div class="response">
+					// 	<!-- could it be make a modal-->
+					// </div>
+					<!-- Modal for response -->
+					<div class="modal" id="responseModal">
+						<p id="responseText"></p>
+					</div>
+				</div>
+			</div>
+			<div>
+				<div hx-get={ listViewURL } hx-trigger="load,newObject from:body" hx-target="#listBody"></div>
+				<table>
+					<tbody id="listBody" hx-target="closest tr" hx-swap="outerHTML swap:1s"></tbody>
+				</table>
+				//return list attribute
+			</div>
+			<script>
+			htmx.on('#uploadForm', 'htmx:xhr:progress', function(evt) {
+				htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
+				});
+
+				// Handle response 
+				document.body.addEventListener('htmx:response', function(event) {
+					const responseText = event.detail.xhr.responseText.trim();
+					const responseModal = document.getElementById('responseModal');
+					const responseTextElement = document.getElementById('responseText');
+
+
+					responseModal.style.display = 'block';
+
+					// Close modal after 3 seconds (adjust as needed)
+					setTimeout(function() {
+						responseModal.style.display = 'none';
+					}, 3000);
+				});		
+  		  </script>
+		</body>
+	</html>
+}

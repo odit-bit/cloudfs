@@ -1,12 +1,15 @@
 http:
   host: "localhost"
   port: 8181
+  limit: 50
+  burst: 100
 storage:
   blob:
-    endpoint: "127.0.0.1:9000" #minio endpoint
+    endpoint: "127.0.0.1:9000" #minio adapter endpoint
     accessKey: "admin"
     secretKey: "admin12345"
   user:
     uri: "postgres://admin:admin@localhost/postgres" #postgres
 session:
-  token: "my-token-secret"
+  token: "my-token-secret" #deprecate
+  expired: 240 # in minute
