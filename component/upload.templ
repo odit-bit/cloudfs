@@ -1,0 +1,79 @@
+package component
+
+templ Upload(uploadURL string) {
+	<body>
+		<style>
+		.upload{
+			text-align: center;
+			padding: 10px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+		}
+
+		form {
+			text-align: center;
+			margin-top: 20px;
+		}
+
+		/* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+		.htmx-indicator{
+			display:none;
+		}
+		.htmx-request .htmx-indicator{
+			display:inline;
+		}
+		.htmx-request.htmx-indicator{
+			display:inline;
+		}
+
+		</style>
+		<div class="upload">
+			<form id="uploadForm" hx-encoding="multipart/form-data" hx-post={ uploadURL } hx-target=".response" hx-on::after-request=" if(event.detail.successful) this.reset()">
+				<input type="file" name="file"/>
+				<input type="submit" value="Upload"/>
+				// <button onclick="htmx.trigger('#uploadForm', 'htmx:abort')">Cancel Request</button>
+			</form>
+			<div class="response">
+				<!-- could it be make a modal-->
+				<progress id="progress" class="htmx-indicator" value="0" max="100"></progress>
+			</div>
+			<!-- Modal for response -->
+			<div class="modal" id="responseModal">
+				<p id="responseText"></p>
+			</div>
+		</div>
+		<script>
+       htmx.on('#uploadForm', 'htmx:xhr:progress', function(evt) {
+          htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
+        });
+
+		// Handle response and show modal
+        document.body.addEventListener('htmx:response', function(event) {
+            const responseText = event.detail.xhr.responseText.trim();
+            const responseModal = document.getElementById('responseModal');
+            const responseTextElement = document.getElementById('responseText');
+
+
+            responseModal.style.display = 'block';
+
+            // Close modal after 3 seconds (adjust as needed)
+            setTimeout(function() {
+                responseModal.style.display = 'none';
+            }, 3000);
+        });		
+    </script>
+	</body>
+}

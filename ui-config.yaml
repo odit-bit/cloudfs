@@ -7,3 +7,7 @@ api:
     Path: "/api/list"
   Upload:
     Path: "/api/upload"
+  Login:
+    Path: "/api/login"
+  Register:
+    Path: "/api/register"

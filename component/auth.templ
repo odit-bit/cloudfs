@@ -1,0 +1,117 @@
+package component
+
+templ Login(loginAPI, registerPageURL string) {
+	<head>
+		<meta charset="UTF-8"/>
+		<title>Login</title>
+		<script src="https://unpkg.com/htmx.org@1.9.9"></script>
+	</head>
+	<body>
+		// <style>
+		// 	form {
+		// 		text-align: center;
+		// 		margin-top: 20px;
+		// 	}
+		// 	input[type="text"],
+		// 	input[type="password"],
+		// 	input[type="email"],
+		// 	input[type="submit"] {
+		// 		#width: 100%;
+		// 		padding: 10px;
+		// 		margin-bottom: 15px;
+		// 		border-radius: 5px;
+		// 		border: 1px solid #ccc;
+		// 	}
+		// 	input[type="submit"] {
+		// 		background-color: #4caf50;
+		// 		color: white;
+		// 		cursor: pointer;
+		// 	}
+		// 	input[type="submit"]:hover {
+		// 		background-color: #45a049;
+		// 	}
+		// </style>
+		<div id="loginForm">
+			<form action={ templ.URL(loginAPI) } method="POST">
+				<label for="username">Username:</label>
+				<br/>
+				<input type="text" id="username" name="username"/>
+				<br/>
+				<label for="password">Password:</label>
+				<br/>
+				<input type="password" id="password" name="password"/>
+				<br/>
+				<br/>
+				<input type="submit" value="Login"/>
+				<button hx-get={ registerPageURL } hx-swap="outerHtml" hx-target="#loginForm">register</button>
+			</form>
+		</div>
+		<script>
+		document.body.addEventListener('htmx:beforeSwap', function(evt) {
+			var status = evt.detail.xhr.status
+			if(status === 404){
+				// alert the user when a 404 occurs (maybe use a nicer mechanism than alert())
+				// alert("Error: Could Not Find Username");
+				evt.detail.shouldSwap = true;
+				evt.detail.isError = false;
+			} else if ( status === 401){
+				// allow 422 responses to swap as we are using this as a signal that
+				// a form was submitted with bad data and want to rerender with the
+				// errors
+				//
+				// set isError to false to avoid error logging in console
+				evt.detail.shouldSwap = true;
+				evt.detail.isError = false;
+			} else {
+				// window.location.href = "/login";
+				evt.detail.shouldSwap = true;
+				evt.detail.isError = false;
+			}
+		});	
+	</script>
+	</body>
+}
+
+templ Register(registerURL string) {
+	<head>
+		<meta charset="UTF-8"/>
+		<title>User Registration</title>
+		<script src="https://unpkg.com/htmx.org@1.9.9"></script>
+	</head>
+	<body>
+		// 	<style>
+		//     form {
+		//         text-align: center;
+		//         margin-top: 20px;
+		//     }
+		//     input[type="text"],
+		//     input[type="password"],
+		//     input[type="email"],
+		//     input[type="submit"] {
+		//         #width: 100%;
+		//         padding: 10px;
+		//         margin-bottom: 15px;
+		//         border-radius: 5px;
+		//         border: 1px solid #ccc;
+		//     }
+		//     input[type="submit"] {
+		//         background-color: #4caf50;
+		//         color: white;
+		//         cursor: pointer;
+		//     }
+		//     input[type="submit"]:hover {
+		//         background-color: #45a049;
+		//     }
+		// </style>
+		<div class="container">
+			<h2>Registration</h2>
+			<form action={ templ.URL(registerURL) } method="POST">
+				<label for="username">Username</label>
+				<input type="text" id="username" name="username" required/>
+				<label for="password">Password</label>
+				<input type="password" id="password" name="password" required/>
+				<input type="submit" value="Register"/>
+			</form>
+		</div>
+	</body>
+}
