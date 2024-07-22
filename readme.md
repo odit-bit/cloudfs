@@ -1,6 +1,6 @@
 # cloud storage
 
-the architecture is rather simple , it use postgres for store user account and minio for store object (files)  
+ 
 
 ## Getting Started
 
@@ -17,3 +17,6 @@ visit "localhost:2080" in browser. to manage the uploaded file it can access fro
 docker compose down -v
 ```
 
+### Architecture
+the architecture is rather simple , it use postgres for store user account and minio for store object (files) 
+<img title="a title" alt="Alt text" src="cloudfs-simple-diagram.jpg">

@@ -40,5 +40,6 @@ func indexPage(uploadAPI, listViewURL string) http.HandlerFunc {
 	idxPage := component.Index(uploadAPI, listViewURL)
 	return func(w http.ResponseWriter, r *http.Request) {
 		idxPage.Render(r.Context(), w)
+
 	}
 }

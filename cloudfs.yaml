@@ -10,6 +10,8 @@ storage:
     secretKey: "admin12345"
   user:
     uri: "postgres://admin:admin@localhost/postgres" #postgres
+  token:
+    uri: ":memory:"
 session:
   token: "my-token-secret" #deprecate
   expired: 240 # in minute

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"io"
-	"sync"
+	"time"
 
 	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/internal/user"
@@ -13,13 +13,15 @@ type BlobStore interface {
 	Put(ctx context.Context, bucket, filename string, reader io.Reader, size int64, contentType string) (*blob.ObjectInfo, error)
 	Get(ctx context.Context, bucket, filename string) (*blob.ObjectInfo, error)
 	Delete(ctx context.Context, bucket, filename string) error
+	ObjectIterator(ctx context.Context, bucket string, limit int, lastFilename string) *blob.Iterator
 	// GenerateShareURL(ctx context.Context, bucket, filename string) (*url.URL, error)
 }
 
-type BucketStore interface {
-	CreateBucket(ctx context.Context, bucket string) (any, error)
-	IsBucketExist(ctx context.Context, bucket string) (bool, error)
-	ObjectIterator(ctx context.Context, bucket string, limit int, lastFilename string) *blob.Iterator
+type TokenStore interface {
+	// CreateBucket(ctx context.Context, bucket string) (any, error)
+	// IsBucketExist(ctx context.Context, bucket string) (bool, error)
+	Validate(ctx context.Context, tokenString string) (userID, filename string, ok bool)
+	Generate(ctx context.Context, bucket, filename string, dur time.Duration) (string, error)
 }
 
 type AccountStore interface {
@@ -29,20 +31,15 @@ type AccountStore interface {
 
 type Cloudfs struct {
 	blobService    BlobStore
-	bucketService  BucketStore
+	tokenService   TokenStore
 	accountService AccountStore
-
-	mx     sync.Mutex
-	biller map[string]float64
 }
 
-func NewCloudfs(bucketStore BucketStore, blobStore BlobStore, accountStore AccountStore) (*Cloudfs, error) {
+func NewCloudfs(bucketStore TokenStore, blobStore BlobStore, accountStore AccountStore) (*Cloudfs, error) {
 	return &Cloudfs{
 		blobService:    blobStore,
-		bucketService:  bucketStore,
+		tokenService:   bucketStore,
 		accountService: accountStore,
-		mx:             sync.Mutex{},
-		biller:         map[string]float64{},
 	}, nil
 }
 

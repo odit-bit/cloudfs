@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/url"
 	"time"
-
-	"github.com/minio/minio-go/v7"
 )
 
 type ShareFunc func(ctx context.Context, expiration time.Duration) (*url.URL, error)
@@ -52,48 +50,48 @@ func (o *ObjectInfo) Validate() error {
 	return nil
 }
 
-/////////// cursor
+// /////////// cursor
 
-type Cursor struct {
-	UserID  string
-	listC   <-chan minio.ObjectInfo
-	objInfo *minio.ObjectInfo
+// type Cursor struct {
+// 	UserID  string
+// 	listC   <-chan minio.ObjectInfo
+// 	objInfo *minio.ObjectInfo
 
-	err error
-}
+// 	err error
+// }
 
-func (li *Cursor) Next() bool {
-	objInfo, ok := <-li.listC
-	if !ok {
-		return false
-	}
-	if objInfo.Err != nil {
-		li.err = objInfo.Err
-		return false
-	}
+// func (li *Cursor) Next() bool {
+// 	objInfo, ok := <-li.listC
+// 	if !ok {
+// 		return false
+// 	}
+// 	if objInfo.Err != nil {
+// 		li.err = objInfo.Err
+// 		return false
+// 	}
 
-	li.objInfo = &objInfo
-	return true
-}
+// 	li.objInfo = &objInfo
+// 	return true
+// }
 
-func (li *Cursor) Scan(info *ObjectInfo) {
-	if info == nil {
-		panic("storage cursor cannot scan into nil info")
-	}
+// func (li *Cursor) Scan(info *ObjectInfo) {
+// 	if info == nil {
+// 		panic("storage cursor cannot scan into nil info")
+// 	}
 
-	// fmt.Println("STORAGE CURSOR", li.objInfo)
-	info.UserID = li.UserID
-	info.Filename = li.objInfo.Key
-	info.Sum = li.objInfo.ETag
-	info.Size = li.objInfo.Size
-	info.LastModified = li.objInfo.LastModified
+// 	// fmt.Println("STORAGE CURSOR", li.objInfo)
+// 	info.UserID = li.UserID
+// 	info.Filename = li.objInfo.Key
+// 	info.Sum = li.objInfo.ETag
+// 	info.Size = li.objInfo.Size
+// 	info.LastModified = li.objInfo.LastModified
 
-	li.objInfo = nil
-}
+// 	li.objInfo = nil
+// }
 
-func (li *Cursor) Error() error {
-	return li.err
-}
+// func (li *Cursor) Error() error {
+// 	return li.err
+// }
 
 //////////
 
