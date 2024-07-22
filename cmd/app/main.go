@@ -9,7 +9,8 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/odit-bit/cloudfs/handler/app"
-	"github.com/odit-bit/cloudfs/internal/blob"
+	"github.com/odit-bit/cloudfs/internal/blob/store/minioblob"
+	"github.com/odit-bit/cloudfs/internal/blob/store/tokenbunt"
 	"github.com/odit-bit/cloudfs/internal/user/pguser"
 	"github.com/odit-bit/cloudfs/service"
 	"github.com/spf13/cobra"
@@ -88,17 +89,17 @@ func setupWebAppCmd(conf *config) *cobra.Command {
 			defer cancel()
 
 			//setup user database
-			udb, err := pguser.NewDB(
+			userDatabase, err := pguser.NewDB(
 				cmdCtx,
 				conf.Storage.User.URI,
 			)
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer udb.Close()
+			defer userDatabase.Close()
 
 			//setup blob storage
-			storage, err := blob.NewMinioAdapter(
+			blobStorage, err := minioblob.New(
 				conf.Storage.Blob.Endpoint,
 				conf.Storage.Blob.AccessKey,
 				conf.Storage.Blob.SecretKey,
@@ -106,6 +107,12 @@ func setupWebAppCmd(conf *config) *cobra.Command {
 			if err != nil {
 				log.Fatal(err)
 			}
+			//setup blob token storage
+			blobTokenManager, err := tokenbunt.New(conf.Storage.Token.URI)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer blobTokenManager.Close()
 
 			//setup logger
 			logger := slog.New(slog.NewTextHandler(cmd.OutOrStdout(), &slog.HandlerOptions{
@@ -114,7 +121,7 @@ func setupWebAppCmd(conf *config) *cobra.Command {
 			}))
 
 			// setup app
-			api, err := service.NewCloudfs(storage, storage, udb)
+			api, err := service.NewCloudfs(blobTokenManager, blobStorage, userDatabase)
 			if err != nil {
 				logger.Error(err.Error())
 				return

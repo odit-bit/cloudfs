@@ -50,7 +50,7 @@ func Test_iterator(t *testing.T) {
 			UserID: "",
 			C:      objC,
 			obj:    &ObjectInfo{},
-			err:    nil,
+			// err:    nil,
 		}
 
 		for _, expected := range test.input {

@@ -32,6 +32,9 @@ type config struct {
 		User struct {
 			URI string
 		}
+		Token struct {
+			URI string
+		}
 	}
 	Session struct {
 		Token   string

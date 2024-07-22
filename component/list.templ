@@ -67,6 +67,8 @@ type ListAttribute struct {
 	DeleteAPI   string
 	//list object
 	ListView string
+	//share url
+	ShareFileAPI string
 }
 
 func (la *ListAttribute) LastObject() (bool, *blob.ObjectInfo) {
@@ -86,6 +88,9 @@ func (la *ListAttribute) DownloadURL(filename string) string {
 func (la *ListAttribute) DeleteURL(filename string) string {
 	return fmt.Sprintf("%s?filename=%s", la.DeleteAPI, filename)
 }
+func (la *ListAttribute) ShareFileURL(filename string) string {
+	return fmt.Sprintf("%s?filename=%s", la.ShareFileAPI, filename)
+}
 
 func (la *ListAttribute) NextListView() string {
 	length := la.Length()
@@ -97,15 +102,77 @@ func (la *ListAttribute) NextListView() string {
 }
 
 templ ListData(attr *ListAttribute) {
+	// <style>
+	// 		table {
+	// 			text-align: center;
+	// 			border-collapse: collapse;
+	// 			width: 100%;
+	// 			margin: 0 auto;
+	// 		}
+	// 		th, td {
+	// 			padding: 12px;
+	// 			text-align: left;
+	// 			border-bottom: 1px solid #DDD;
+	// 		}
+	// 		th {
+	// 			background-color: #f2f2f2;
+	// 			font-weight: bold;
+	// 			text-transform: uppercase;
+	// 		}
+	// 		tr:hover {
+	// 			background-color: #D6EEEE;
+	// 		}
+	// 		tr:nth-child(even) {
+	// 			background-color: #f2f2f2;
+	// 		}
+	// 		a {
+	// 			text-decoration: none;
+	// 			color: #0066cc;
+	// 		}
+	// 		a:hover {
+	// 			text-decoration: underline;
+	// 		}
+	// 	</style>
 	if attr.Length() != 0 {
-		for _, obj := range attr.Objects {
-			<tr id={ obj.Sum }>
-				<td>{ obj.Filename }</td>
-				<td>{ humanize.Bytes(uint64(obj.Size)) }</td>
-				<td>{ humanize.Time(obj.LastModified) }</td>
-				<td><a href={ templ.URL(attr.DownloadURL(obj.Filename)) } download={ obj.Filename }>Download</a></td>
-				<td><button class="btn danger" hx-delete={ attr.DeleteURL(obj.Filename) }>Delete</button></td>
-			</tr>
-		}
+		<table class="uk-table uk-table-hover uk-table-justify">
+			<tbody>
+				for i, obj := range attr.Objects {
+					<div hx-swap="outerHTML swap:1s">
+						<tr>
+							<td>{ obj.Filename }</td>
+							<td>{ humanize.Bytes(uint64(obj.Size)) }</td>
+							<td>{ humanize.Time(obj.LastModified) }</td>
+							<td><a href={ templ.URL(attr.DownloadURL(obj.Filename)) } download={ obj.Filename }>Download</a></td>
+							<td id={ fmt.Sprintf("shareButton%d", i) }>
+								<!-- This is a button toggling the modal -->
+								<button
+									class="uk-button uk-button-default uk-margin-small-right"
+									hx-get={ attr.ShareFileURL(obj.Filename) }
+									hx-target={ fmt.Sprintf("#shareButton%d", i) }
+									type="button"
+								>share</button>
+							</td>
+							<td><button class="btn danger" hx-target="closest tr" hx-delete={ attr.DeleteURL(obj.Filename) }>Delete</button></td>
+						</tr>
+					</div>
+				}
+			</tbody>
+		</table>
 	}
+}
+
+templ ShareFileResponse(shareFileURL, validUntil string) {
+	<button
+		class="uk-button uk-button-default uk-margin-small-right"
+		type="button"
+		uk-toggle="target: #shareModal"
+	>show url</button>
+	<div id="shareModal" class="uk-text-center" uk-modal>
+		<div class="uk-modal-dialog uk-modal-body uk-width-auto">
+			<h2 class="uk-modal-title">ShareFile</h2>
+			<p>url = { shareFileURL }</p>
+			<p>expire = { validUntil }</p>
+			<button class="uk-button uk-button-default uk-modal-close" type="button">Close</button>
+		</div>
+	</div>
 }
