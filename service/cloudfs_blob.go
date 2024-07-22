@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/odit-bit/cloudfs/internal/blob"
 )
 
@@ -98,25 +98,66 @@ func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*
 		return nil, err
 	}
 
-	token, err := app.tokenService.Generate(ctx, userID, filename, 24*time.Hour)
-	if err != nil {
+	// token, err := app.tokenService.Generate(ctx, userID, filename, 24*time.Hour)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// sObj := sharingObj{
+	// 	Owner:      userID,
+	// 	Filename:   filename,
+	// 	Token:      token,
+	// 	ValidUntil: humanize.Time(time.Now().Add(25 * time.Hour)),
+	// }
+
+	// return &sObj, nil
+
+	var sObj sharingObj
+	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
+		tkn := blob.NewShareToken(userID, filename, 24*time.Hour)
+		if err := txn.Put(ctx, tkn); err != nil {
+			txn.Cancel()
+			return err
+		}
+
+		sObj.Owner = userID
+		sObj.Filename = filename
+		sObj.Token = tkn.Key
+		sObj.ValidUntil = tkn.Expire.String()
+
+		return txn.Commit()
+	}); err != nil {
 		return nil, err
 	}
-
-	sObj := sharingObj{
-		Owner:      userID,
-		Filename:   filename,
-		Token:      token,
-		ValidUntil: humanize.Time(time.Now().Add(25 * time.Hour)),
-	}
-
 	return &sObj, nil
 }
 
 func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string, writeFunc func(r io.Reader)) error {
-	userID, filename, ok := app.tokenService.Validate(ctx, token)
-	if !ok {
-		return ErrTokenExpired
+	// userID, filename, ok := app.tokenService.Validate(ctx, token)
+	// if !ok {
+	// 	return ErrTokenExpired
+	// }
+
+	var userID, filename string
+	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
+		st, err := txn.Get(ctx, token)
+		if err != nil {
+			txn.Cancel()
+			return fmt.Errorf("token not Found")
+		}
+
+		if ok := st.IsNotExpire(); !ok {
+			if err := txn.Delete(ctx, st.Key); err != nil {
+				txn.Cancel()
+				return ErrTokenExpired
+			}
+		}
+
+		userID = st.UserID
+		filename = st.Filename
+		return txn.Commit()
+	}); err != nil {
+		return err
 	}
 
 	info, err := app.blobService.Get(ctx, userID, filename)

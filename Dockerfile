@@ -1,4 +1,4 @@
-FROM golang:alpine as build-stage
+FROM golang:1.22.5-alpine3.20 as build-stage
 
 # WORKDIR /usr/src/app
 
@@ -29,12 +29,18 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
 # Build the application.
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
-    CGO_ENABLED=0 go build -o /web ./cmd/web
+    CGO_ENABLED=0 go build -o /cloudfs-web ./cmd/app
+
+# default config file
+COPY cloudfs.yaml .
 
 # distroless
-FROM gcr.io/distroless/base-debian12
+FROM gcr.io/distroless/base-debian12 as Final-stage
 WORKDIR /app
 
-COPY --from=build-stage /web .
+COPY cloudfs.yaml .
+COPY --from=build-stage /cloudfs-web .
+
 EXPOSE 8181
-CMD [ "./web" ]
+ENTRYPOINT ["./cloudfs-web"]
+CMD [ "run" ]

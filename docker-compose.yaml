@@ -5,12 +5,12 @@ services:
     expose:
       - "9000"
       - "9090"
-    ports:
-      - "9000:9000" #server
-      - "9090:9090" #admin
+      # ports:
+      # - "9000:9000" #server
+      # - "9090:9090" #admin
     environment:
-      - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=admin12345
+      - MINIO_ROOT_USER=access-key
+      - MINIO_ROOT_PASSWORD=secret-access-key
       - MINIO_VOLUMES=/mnt/data
       # - MINIO_CONFIG_ENV_FILE=/etc/config.env
     volumes:
@@ -19,11 +19,13 @@ services:
       - blob_data:/data
     command: server --console-address ":9090"
 
-  postgres:
+  pg:
     image: postgres:alpine
-    hostname: postgres
-    ports:
-      - "5432:5432"
+    hostname: pg
+    expose:
+      - "5432"
+    # ports:
+    #   - "5432:5432"
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
@@ -55,21 +57,35 @@ services:
       context: .
       dockerfile: Dockerfile
     # image: oditbit/cloudfs-web
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+        max_attempts: 3
+        window: 60s
     depends_on:
       - minio1
-      - postgres
-    hostname: cloudfs-web
+      - pg
+    hostname: web
     restart: on-failure
+    expose:
+      - "8181"
     # ports:
     #   - "8282:8181"
+    volumes:
+      - token_data:/token
     environment:
-      - USER_DB_ENDPOINT=postgres://admin:admin@postgres:5432/postgres
+      - USER_DB_URI=postgres://admin:admin@pg:5432/postgres
+      - TOKEN_DB_URI=/token
       - BLOB_STORAGE_ENDPOINT=minio1:9000
-      - BLOB_STORAGE_USER=admin
-      - BLOB_STORAGE_PASSWORD=admin12345
+      - BLOB_STORAGE_USER=access-key
+      - BLOB_STORAGE_PASSWORD=secret-access-key
 
 volumes:
   blob_data:
+  token_data:
   user_data:
   caddy_data:
   caddy_config:

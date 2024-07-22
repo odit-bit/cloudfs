@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"io"
-	"time"
 
 	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/internal/user"
@@ -18,10 +17,16 @@ type BlobStore interface {
 }
 
 type TokenStore interface {
-	// CreateBucket(ctx context.Context, bucket string) (any, error)
-	// IsBucketExist(ctx context.Context, bucket string) (bool, error)
-	Validate(ctx context.Context, tokenString string) (userID, filename string, ok bool)
-	Generate(ctx context.Context, bucket, filename string, dur time.Duration) (string, error)
+	// Validate(ctx context.Context, tokenString string) (userID, filename string, ok bool)
+	// Generate(ctx context.Context, bucket, filename string, dur time.Duration) (string, error)
+	Query(ctx context.Context, txn func(txn TokenTxn) error) error
+}
+type TokenTxn interface {
+	Put(ctx context.Context, token *blob.ShareToken) error
+	Get(ctx context.Context, tokenString string) (*blob.ShareToken, error)
+	Delete(ctx context.Context, key string) error
+	Commit() error
+	Cancel() error
 }
 
 type AccountStore interface {
@@ -35,10 +40,10 @@ type Cloudfs struct {
 	accountService AccountStore
 }
 
-func NewCloudfs(bucketStore TokenStore, blobStore BlobStore, accountStore AccountStore) (*Cloudfs, error) {
+func NewCloudfs(tokenStore TokenStore, blobStore BlobStore, accountStore AccountStore) (*Cloudfs, error) {
 	return &Cloudfs{
 		blobService:    blobStore,
-		tokenService:   bucketStore,
+		tokenService:   tokenStore,
 		accountService: accountStore,
 	}, nil
 }

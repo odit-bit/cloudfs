@@ -57,7 +57,7 @@ func (app *App) Run(ctx context.Context, addr string, middlewares ...func(http.H
 		srv.Shutdown(ctx2)
 	}(ctx)
 
-	fmt.Println("listen on ", addr)
+	app.logger.Info(fmt.Sprintf("listen on %s", addr))
 	err := srv.ListenAndServe()
 	if err != http.ErrServerClosed {
 		app.logger.Error(err.Error())

@@ -20,7 +20,7 @@ type Result struct {
 }
 
 func connectMinio(endpoint, accessKeyID, secretAccessKey string, secure bool) (*minio.Client, error) {
-	fmt.Println(endpoint, accessKeyID, secretAccessKey)
+	// fmt.Println(endpoint, accessKeyID, secretAccessKey)
 	cli, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: secure,

@@ -2,8 +2,6 @@ package main
 
 import (
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 const (
@@ -11,9 +9,14 @@ const (
 	BLOB_STORAGE_ACCESS_KEY = "BLOB_STORAGE_ACCESS_KEY"
 	BLOB_STORAGE_SECRET_KEY = "BLOB_STORAGE_SECRET_KEY"
 
-	USER_DATABASE_URI = "USER_DATABASE_URI"
+	USER_DB_URI = "USER_DB_URI"
+
+	TOKEN_DB_URI = "TOKEN_DB_URI"
 
 	SESSION_TOKEN_SECRET = "SESSION_TOKEN_SECRET"
+
+	HOST = "HOST"
+	PORT = "PORT"
 )
 
 type config struct {
@@ -72,53 +75,53 @@ func (conf *config) Address() string {
 	return conf.HTTP.Host + ":" + conf.HTTP.Port
 }
 
-type xConfig struct {
-	v *viper.Viper
-	config
-}
+// type xConfig struct {
+// 	v *viper.Viper
+// 	config
+// }
 
-func LoadConfig(path string) (*xConfig, error) {
-	c, err := loadConfig(path)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.loadEnv(); err != nil {
-		return nil, err
-	}
-	if err := c.validate(); err != nil {
-		return nil, err
-	}
-	return c, nil
-}
+// func LoadConfig(path string) (*xConfig, error) {
+// 	c, err := loadConfig(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if err := c.loadEnv(); err != nil {
+// 		return nil, err
+// 	}
+// 	if err := c.validate(); err != nil {
+// 		return nil, err
+// 	}
+// 	return c, nil
+// }
 
-func loadConfig(path string) (*xConfig, error) {
-	v := viper.New()
-	v.SetConfigFile(path)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
+// func loadConfig(path string) (*xConfig, error) {
+// 	v := viper.New()
+// 	v.SetConfigFile(path)
+// 	if err := v.ReadInConfig(); err != nil {
+// 		return nil, err
+// 	}
 
-	var conf config
-	if err := v.Unmarshal(&conf); err != nil {
-		return nil, err
-	}
-	c := xConfig{
-		v:      v,
-		config: conf,
-	}
-	return &c, nil
-}
+// 	var conf config
+// 	if err := v.Unmarshal(&conf); err != nil {
+// 		return nil, err
+// 	}
+// 	c := xConfig{
+// 		v:      v,
+// 		config: conf,
+// 	}
+// 	return &c, nil
+// }
 
-func (c *xConfig) loadEnv() error {
-	c.v.BindEnv("storage.blob.endpoint", BLOB_STORAGE_ENDPOINT)
-	c.v.BindEnv("storage.blob.accesskey", BLOB_STORAGE_ACCESS_KEY)
-	c.v.BindEnv("storage.blob.secretkey", BLOB_STORAGE_SECRET_KEY)
-	c.v.BindEnv("storage.user.uri", USER_DATABASE_URI)
+// func (c *xConfig) loadEnv() error {
+// 	c.v.BindEnv("storage.blob.endpoint", BLOB_STORAGE_ENDPOINT)
+// 	c.v.BindEnv("storage.blob.accesskey", BLOB_STORAGE_ACCESS_KEY)
+// 	c.v.BindEnv("storage.blob.secretkey", BLOB_STORAGE_SECRET_KEY)
+// 	c.v.BindEnv("storage.user.uri", USER_DB_URI)
 
-	var conf config
-	if err := c.v.Unmarshal(&conf); err != nil {
-		return err
-	}
-	c.config = conf
-	return nil
-}
+// 	var conf config
+// 	if err := c.v.Unmarshal(&conf); err != nil {
+// 		return err
+// 	}
+// 	c.config = conf
+// 	return nil
+// }

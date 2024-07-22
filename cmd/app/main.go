@@ -10,7 +10,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/odit-bit/cloudfs/handler/app"
 	"github.com/odit-bit/cloudfs/internal/blob/store/minioblob"
-	"github.com/odit-bit/cloudfs/internal/blob/store/tokenbunt"
+	"github.com/odit-bit/cloudfs/internal/blob/store/tokenpg"
 	"github.com/odit-bit/cloudfs/internal/user/pguser"
 	"github.com/odit-bit/cloudfs/service"
 	"github.com/spf13/cobra"
@@ -28,7 +28,10 @@ func main() {
 	viper.BindEnv("storage.blob.endpoint", BLOB_STORAGE_ENDPOINT)
 	viper.BindEnv("storage.blob.accessKey", BLOB_STORAGE_ACCESS_KEY)
 	viper.BindEnv("storage.blob.secretKey", BLOB_STORAGE_SECRET_KEY)
-	viper.BindEnv("storage.user.uri", USER_DATABASE_URI)
+	viper.BindEnv("storage.user.uri", USER_DB_URI)
+	viper.BindEnv("storage.token.uri", TOKEN_DB_URI)
+	viper.BindEnv("http.host", HOST)
+	viper.BindEnv("http.port", PORT)
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -47,7 +50,7 @@ func main() {
 	root.PersistentFlags().StringVarP(&_port, "port", "p", "8181", "port to listen-to")
 	viper.BindPFlag("http.port", root.Flags().Lookup("port"))
 
-	root.PersistentFlags().StringVar(&_host, "host", "localhost", "host name")
+	root.PersistentFlags().StringVar(&_host, "host", "", "host name")
 	viper.BindPFlag("http.host", root.Flags().Lookup("host"))
 
 	var conf config
@@ -74,45 +77,49 @@ func setupWebAppCmd(conf *config) *cobra.Command {
 
 			if port, err := cmd.Flags().GetString("port"); err != nil {
 				log.Println(err)
-			} else {
+				return
+			} else if port != "" {
 				conf.HTTP.Port = port
 			}
 
 			if host, err := cmd.Flags().GetString("host"); err != nil {
 				log.Println(err)
-			} else {
+				return
+			} else if host != "" {
 				conf.HTTP.Host = host
-
 			}
 
 			cmdCtx, cancel := context.WithTimeout(cmd.Context(), 3*time.Second)
 			defer cancel()
 
 			//setup user database
-			userDatabase, err := pguser.NewDB(
+			userDB, err := pguser.NewDB(
 				cmdCtx,
 				conf.Storage.User.URI,
 			)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				return
 			}
-			defer userDatabase.Close()
+			defer userDB.Close()
 
 			//setup blob storage
-			blobStorage, err := minioblob.New(
+			blobStore, err := minioblob.New(
 				conf.Storage.Blob.Endpoint,
 				conf.Storage.Blob.AccessKey,
 				conf.Storage.Blob.SecretKey,
 			)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				return
 			}
 			//setup blob token storage
-			blobTokenManager, err := tokenbunt.New(conf.Storage.Token.URI)
+			tokenStore, err := tokenpg.NewDB(cmdCtx, conf.Storage.Token.URI)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				return
 			}
-			defer blobTokenManager.Close()
+			defer tokenStore.Close()
 
 			//setup logger
 			logger := slog.New(slog.NewTextHandler(cmd.OutOrStdout(), &slog.HandlerOptions{
@@ -121,7 +128,7 @@ func setupWebAppCmd(conf *config) *cobra.Command {
 			}))
 
 			// setup app
-			api, err := service.NewCloudfs(blobTokenManager, blobStorage, userDatabase)
+			api, err := service.NewCloudfs(tokenStore, blobStore, userDB)
 			if err != nil {
 				logger.Error(err.Error())
 				return
