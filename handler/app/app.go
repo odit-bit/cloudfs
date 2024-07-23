@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/dustin/go-humanize"
 	"github.com/odit-bit/cloudfs/component"
 	"github.com/odit-bit/cloudfs/service"
 )
@@ -122,19 +122,7 @@ func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 		v.serviceErr(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", obj.Filename))
-
-	rc, err := obj.Reader.Get(ctx)
-	if err != nil {
-		v.serviceErr(w, r, err)
-		return
-	}
-	defer rc.Close()
-
-	if _, err := io.Copy(w, rc); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
+	v.writeObject(w, r, obj)
 }
 
 func (v *App) Delete(w http.ResponseWriter, r *http.Request) {
@@ -184,8 +172,6 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = obj
-	// objs := []*blob.ObjectInfo{obj}
-	// listView(objs, _ListView, w, r)
 	w.Header().Set("HX-Trigger", "newObject")
 	w.WriteHeader(http.StatusOK)
 }
@@ -280,7 +266,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			RawQuery: q.Encode(),
 		}
 
-		comp := component.ShareFileResponse(shareURL.String(), obj.ValidUntil)
+		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(obj.ValidUntil))
 		comp.Render(ctx, w)
 	}
 }
@@ -289,10 +275,10 @@ func (v *App) DownloadShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	token := r.URL.Query().Get("token")
-	if err := v.svc.DownloadSharedFile(ctx, token, func(r io.Reader) {
-		io.Copy(w, r)
-	}); err != nil {
+	obj, err := v.svc.DownloadSharedFile(ctx, token)
+	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
+	v.writeObject(w, r, obj)
 }

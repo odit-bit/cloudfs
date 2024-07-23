@@ -278,14 +278,14 @@ func ShareFileResponse(shareFileURL, validUntil string) templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"uk-button uk-button-default uk-margin-small-right\" type=\"button\" uk-toggle=\"target: #shareModal\">show url</button><div id=\"shareModal\" class=\"uk-text-center\" uk-modal><div class=\"uk-modal-dialog uk-modal-body uk-width-auto\"><h2 class=\"uk-modal-title\">ShareFile</h2><p>url = ")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"uk-button uk-button-default uk-margin-small-right\" type=\"button\" uk-toggle=\"target: #shareModal\">show url</button><div id=\"shareModal\" class=\"uk-text-center\" uk-modal><div class=\"uk-modal-dialog uk-modal-body uk-width-auto\"><h2 class=\"uk-modal-title\">ShareFile</h2><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(shareFileURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/list.templ`, Line: 173, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/list.templ`, Line: 173, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {

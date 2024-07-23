@@ -1,36 +1,37 @@
 package component
 
 templ Login(loginAPI, registerPageURL string) {
+	<!DOCTYPE html>
 	<head>
 		<meta charset="UTF-8"/>
 		<title>Login</title>
 		<script src="https://unpkg.com/htmx.org@1.9.9"></script>
 	</head>
 	<body>
-		// <style>
-		// 	form {
-		// 		text-align: center;
-		// 		margin-top: 20px;
-		// 	}
-		// 	input[type="text"],
-		// 	input[type="password"],
-		// 	input[type="email"],
-		// 	input[type="submit"] {
-		// 		#width: 100%;
-		// 		padding: 10px;
-		// 		margin-bottom: 15px;
-		// 		border-radius: 5px;
-		// 		border: 1px solid #ccc;
-		// 	}
-		// 	input[type="submit"] {
-		// 		background-color: #4caf50;
-		// 		color: white;
-		// 		cursor: pointer;
-		// 	}
-		// 	input[type="submit"]:hover {
-		// 		background-color: #45a049;
-		// 	}
-		// </style>
+		<style>
+			form {
+				text-align: center;
+				margin-top: 20px;
+			}
+			input[type="text"],
+			input[type="password"],
+			input[type="email"],
+			input[type="submit"] {
+				#width: 100%;
+				padding: 10px;
+				margin-bottom: 15px;
+				border-radius: 5px;
+				border: 1px solid #ccc;
+			}
+			input[type="submit"] {
+				background-color: #4caf50;
+				color: white;
+				cursor: pointer;
+			}
+			input[type="submit"]:hover {
+				background-color: #45a049;
+			}
+		</style>
 		<div id="loginForm">
 			<form action={ templ.URL(loginAPI) } method="POST">
 				<label for="username">Username:</label>
@@ -73,36 +74,37 @@ templ Login(loginAPI, registerPageURL string) {
 }
 
 templ Register(registerURL string) {
+	<!DOCTYPE html>
 	<head>
 		<meta charset="UTF-8"/>
 		<title>User Registration</title>
 		<script src="https://unpkg.com/htmx.org@1.9.9"></script>
 	</head>
 	<body>
-		// 	<style>
-		//     form {
-		//         text-align: center;
-		//         margin-top: 20px;
-		//     }
-		//     input[type="text"],
-		//     input[type="password"],
-		//     input[type="email"],
-		//     input[type="submit"] {
-		//         #width: 100%;
-		//         padding: 10px;
-		//         margin-bottom: 15px;
-		//         border-radius: 5px;
-		//         border: 1px solid #ccc;
-		//     }
-		//     input[type="submit"] {
-		//         background-color: #4caf50;
-		//         color: white;
-		//         cursor: pointer;
-		//     }
-		//     input[type="submit"]:hover {
-		//         background-color: #45a049;
-		//     }
-		// </style>
+		<style>
+		    form {
+		        text-align: center;
+		        margin-top: 20px;
+		    }
+		    input[type="text"],
+		    input[type="password"],
+		    input[type="email"],
+		    input[type="submit"] {
+		       #width: 100%;
+		        padding: 10px;
+		        margin-bottom: 15px;
+		        border-radius: 5px;
+		        border: 1px solid #ccc;
+		    }
+		    input[type="submit"] {
+		        background-color: #4caf50;
+		        color: white;
+		        cursor: pointer;
+		    }
+		    input[type="submit"]:hover {
+		        background-color: #45a049;
+		    }
+		</style>
 		<div class="container">
 			<h2>Registration</h2>
 			<form action={ templ.URL(registerURL) } method="POST">

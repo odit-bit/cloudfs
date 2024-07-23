@@ -59,7 +59,7 @@ services:
     # image: oditbit/cloudfs-web
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
       restart_policy:
         condition: on-failure
         delay: 1s
@@ -74,11 +74,11 @@ services:
       - "8181"
     # ports:
     #   - "8282:8181"
-    volumes:
-      - token_data:/token
+    # volumes:
+    #   - token_data:/token
     environment:
       - USER_DB_URI=postgres://admin:admin@pg:5432/postgres
-      - TOKEN_DB_URI=/token
+      - TOKEN_DB_URI=postgres://admin:admin@pg:5432/postgres
       - BLOB_STORAGE_ENDPOINT=minio1:9000
       - BLOB_STORAGE_USER=access-key
       - BLOB_STORAGE_PASSWORD=secret-access-key

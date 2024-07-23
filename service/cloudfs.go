@@ -13,12 +13,9 @@ type BlobStore interface {
 	Get(ctx context.Context, bucket, filename string) (*blob.ObjectInfo, error)
 	Delete(ctx context.Context, bucket, filename string) error
 	ObjectIterator(ctx context.Context, bucket string, limit int, lastFilename string) *blob.Iterator
-	// GenerateShareURL(ctx context.Context, bucket, filename string) (*url.URL, error)
 }
 
 type TokenStore interface {
-	// Validate(ctx context.Context, tokenString string) (userID, filename string, ok bool)
-	// Generate(ctx context.Context, bucket, filename string, dur time.Duration) (string, error)
 	Query(ctx context.Context, txn func(txn TokenTxn) error) error
 }
 type TokenTxn interface {
@@ -47,13 +44,3 @@ func NewCloudfs(tokenStore TokenStore, blobStore BlobStore, accountStore Account
 		accountService: accountStore,
 	}, nil
 }
-
-// func (app *Cloudfs) calculateBills(id string, n uint64) {
-// 	price := 0.00000012 // per mb
-// 	app.mx.Lock()
-// 	defer app.mx.Unlock()
-// 	bill := app.biller[id]
-// 	bill += price * float64(n/humanize.MiByte)
-// 	log.Printf("current bill %f \n", bill)
-// 	app.biller[id] = bill
-// }

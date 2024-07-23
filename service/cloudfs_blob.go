@@ -48,10 +48,7 @@ func (param *UploadParam) validate() error {
 	if param.Filename == "" {
 		return &errUpload{msg: "filename is nil"}
 	}
-	// if param.Size <= 0 {
-	// 	return &errUpload{msg: "size cannot 0 or under zero"}
-	// }
-	// if param.ContentType == ""{}
+
 	if param.DataReader == nil {
 		return &errUpload{msg: "param data reader is nil"}
 	}
@@ -89,7 +86,7 @@ type sharingObj struct {
 	Owner      string
 	Filename   string
 	Token      string
-	ValidUntil string
+	ValidUntil time.Time
 }
 
 func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*sharingObj, error) {
@@ -97,20 +94,6 @@ func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*
 	if err != nil {
 		return nil, err
 	}
-
-	// token, err := app.tokenService.Generate(ctx, userID, filename, 24*time.Hour)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// sObj := sharingObj{
-	// 	Owner:      userID,
-	// 	Filename:   filename,
-	// 	Token:      token,
-	// 	ValidUntil: humanize.Time(time.Now().Add(25 * time.Hour)),
-	// }
-
-	// return &sObj, nil
 
 	var sObj sharingObj
 	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
@@ -123,7 +106,7 @@ func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*
 		sObj.Owner = userID
 		sObj.Filename = filename
 		sObj.Token = tkn.Key
-		sObj.ValidUntil = tkn.Expire.String()
+		sObj.ValidUntil = tkn.Expire
 
 		return txn.Commit()
 	}); err != nil {
@@ -132,11 +115,7 @@ func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*
 	return &sObj, nil
 }
 
-func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string, writeFunc func(r io.Reader)) error {
-	// userID, filename, ok := app.tokenService.Validate(ctx, token)
-	// if !ok {
-	// 	return ErrTokenExpired
-	// }
+func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string) (*blob.ObjectInfo, error) {
 
 	var userID, filename string
 	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
@@ -157,22 +136,14 @@ func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string, writeF
 		filename = st.Filename
 		return txn.Commit()
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	info, err := app.blobService.Get(ctx, userID, filename)
 	if err != nil {
-		return ErrFileNotExisted
+		return nil, ErrFileNotExisted
 	}
-
-	reader, err := info.Reader.Get(ctx)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-
-	writeFunc(reader)
-	return nil
+	return info, nil
 
 }
 
@@ -185,11 +156,6 @@ func (app *Cloudfs) Delete(ctx context.Context, userID, filename string) error {
 }
 
 func (app *Cloudfs) Download(ctx context.Context, w io.Writer, param *DownloadParam) (any, error) {
-	// if ok, err := app.bucketService.IsBucketExist(ctx, param.UserID); err != nil {
-	// 	return nil, err
-	// } else if !ok {
-	// 	return nil, ErrBucketNotExisted
-	// }
 
 	obj, err := app.blobService.Get(ctx, param.UserID, param.Filename)
 	if err != nil {
