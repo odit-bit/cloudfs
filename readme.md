@@ -1,4 +1,6 @@
  ## Getting Started
+ Remote file storage application.
+ 
 ### Clone repository
 the simplest way to try this, is directly build from the source or use `go run` command
 
