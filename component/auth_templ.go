@@ -26,7 +26,7 @@ func Login(loginAPI, registerPageURL string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><head><meta charset=\"UTF-8\"><title>Login</title><script src=\"https://unpkg.com/htmx.org@1.9.9\"></script></head><body><style>\n\t\t\tform {\n\t\t\t\ttext-align: center;\n\t\t\t\tmargin-top: 20px;\n\t\t\t}\n\t\t\tinput[type=\"text\"],\n\t\t\tinput[type=\"password\"],\n\t\t\tinput[type=\"email\"],\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\t#width: 100%;\n\t\t\t\tpadding: 10px;\n\t\t\t\tmargin-bottom: 15px;\n\t\t\t\tborder-radius: 5px;\n\t\t\t\tborder: 1px solid #ccc;\n\t\t\t}\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\tbackground-color: #4caf50;\n\t\t\t\tcolor: white;\n\t\t\t\tcursor: pointer;\n\t\t\t}\n\t\t\tinput[type=\"submit\"]:hover {\n\t\t\t\tbackground-color: #45a049;\n\t\t\t}\n\t\t</style><div id=\"loginForm\"><form action=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><head><meta charset=\"UTF-8\"><title>Login</title><script src=\"https://unpkg.com/htmx.org@1.9.9\"></script></head><body><style>\n\t\t\tform {\n\t\t\t\ttext-align: center;\n\t\t\t\tmargin-top: 20px;\n\t\t\t}\n\t\t\tinput[type=\"text\"],\n\t\t\tinput[type=\"password\"],\n\t\t\tinput[type=\"email\"],\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\t#width: 100%;\n\t\t\t\tpadding: 10px;\n\t\t\t\tmargin-bottom: 15px;\n\t\t\t\tborder-radius: 5px;\n\t\t\t\tborder: 1px solid #ccc;\n\t\t\t}\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\tbackground-color: #4caf50;\n\t\t\t\tcolor: white;\n\t\t\t\tcursor: pointer;\n\t\t\t}\n\t\t\tinput[type=\"submit\"]:hover {\n\t\t\t\tbackground-color: #45a049;\n\t\t\t}\n\t\t\tbutton {\n\t\t\t\tbackground-color: #4caf50;\n\t\t\t}\n\t\t\ta {\n\t\t\t\tcursor: pointer;\n\t\t\t}\n\t\t</style><div id=\"loginForm\"><form action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -35,20 +35,20 @@ func Login(loginAPI, registerPageURL string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" method=\"POST\"><label for=\"username\">Username:</label><br><input type=\"text\" id=\"username\" name=\"username\"><br><label for=\"password\">Password:</label><br><input type=\"password\" id=\"password\" name=\"password\"><br><br><input type=\"submit\" value=\"Login\"> <button hx-get=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" method=\"POST\"><label for=\"username\">Username:</label><br><input type=\"text\" id=\"username\" name=\"username\"><br><label for=\"password\">Password:</label><br><input type=\"password\" id=\"password\" name=\"password\"><br><br><p>not have account ? <a href=\"\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(registerPageURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/auth.templ`, Line: 47, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/auth.templ`, Line: 52, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-swap=\"outerHtml\" hx-target=\"#loginForm\">register</button></form></div><script>\n\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\tvar status = evt.detail.xhr.status\n\t\t\tif(status === 404){\n\t\t\t\t// alert the user when a 404 occurs (maybe use a nicer mechanism than alert())\n\t\t\t\t// alert(\"Error: Could Not Find Username\");\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t} else if ( status === 401){\n\t\t\t\t// allow 422 responses to swap as we are using this as a signal that\n\t\t\t\t// a form was submitted with bad data and want to rerender with the\n\t\t\t\t// errors\n\t\t\t\t//\n\t\t\t\t// set isError to false to avoid error logging in console\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t} else {\n\t\t\t\t// window.location.href = \"/login\";\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t}\n\t\t});\t\n\t</script></body>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-swap=\"innerHtml\" hx-target=\"#loginForm\">Register</a></p><input type=\"submit\" value=\"Login\"></form></div><script>\n\t\tdocument.body.addEventListener('htmx:beforeSwap', function(evt) {\n\t\t\tvar status = evt.detail.xhr.status\n\t\t\tif(status === 404){\n\t\t\t\t// alert the user when a 404 occurs (maybe use a nicer mechanism than alert())\n\t\t\t\t// alert(\"Error: Could Not Find Username\");\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t} else if ( status === 401){\n\t\t\t\t// allow 422 responses to swap as we are using this as a signal that\n\t\t\t\t// a form was submitted with bad data and want to rerender with the\n\t\t\t\t// errors\n\t\t\t\t//\n\t\t\t\t// set isError to false to avoid error logging in console\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t} else {\n\t\t\t\t// window.location.href = \"/login\";\n\t\t\t\tevt.detail.shouldSwap = true;\n\t\t\t\tevt.detail.isError = false;\n\t\t\t}\n\t\t});\t\n\t</script></body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -74,7 +74,7 @@ func Register(registerURL string) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><head><meta charset=\"UTF-8\"><title>User Registration</title><script src=\"https://unpkg.com/htmx.org@1.9.9\"></script></head><body><style>\n\t\t    form {\n\t\t        text-align: center;\n\t\t        margin-top: 20px;\n\t\t    }\n\t\t    input[type=\"text\"],\n\t\t    input[type=\"password\"],\n\t\t    input[type=\"email\"],\n\t\t    input[type=\"submit\"] {\n\t\t       #width: 100%;\n\t\t        padding: 10px;\n\t\t        margin-bottom: 15px;\n\t\t        border-radius: 5px;\n\t\t        border: 1px solid #ccc;\n\t\t    }\n\t\t    input[type=\"submit\"] {\n\t\t        background-color: #4caf50;\n\t\t        color: white;\n\t\t        cursor: pointer;\n\t\t    }\n\t\t    input[type=\"submit\"]:hover {\n\t\t        background-color: #45a049;\n\t\t    }\n\t\t</style><div class=\"container\"><h2>Registration</h2><form action=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><head><meta charset=\"UTF-8\"><title>User Registration</title><script src=\"https://unpkg.com/htmx.org@1.9.9\"></script></head><body><style>\n\t\t    form {\n\t\t\t\ttext-align: center;\n\t\t\t\tmargin-top: 20px;\n\t\t\t}\n\t\t\tinput[type=\"text\"],\n\t\t\tinput[type=\"password\"],\n\t\t\tinput[type=\"email\"],\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\t#width: 100%;\n\t\t\t\tpadding: 10px;\n\t\t\t\tmargin-bottom: 15px;\n\t\t\t\tborder-radius: 5px;\n\t\t\t\tborder: 1px solid #ccc;\n\t\t\t}\n\t\t\tinput[type=\"submit\"] {\n\t\t\t\tbackground-color: #4caf50;\n\t\t\t\tcolor: white;\n\t\t\t\tcursor: pointer;\n\t\t\t}\n\t\t\tinput[type=\"submit\"]:hover {\n\t\t\t\tbackground-color: #45a049;\n\t\t\t}\n\t\t</style><div><form action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -83,7 +83,7 @@ func Register(registerURL string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" method=\"POST\"><label for=\"username\">Username</label> <input type=\"text\" id=\"username\" name=\"username\" required> <label for=\"password\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required> <input type=\"submit\" value=\"Register\"></form></div></body>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" method=\"POST\"><label for=\"username\">Username:</label><br><input type=\"text\" id=\"username\" name=\"username\"><br><label for=\"password\">Password:</label><br><input type=\"password\" id=\"password\" name=\"password\"><br><br><input type=\"submit\" value=\"Submit\"></form></div></body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

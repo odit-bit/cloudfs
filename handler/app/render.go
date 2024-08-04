@@ -26,14 +26,15 @@ func (v *App) serviceErr(w http.ResponseWriter, r *http.Request, err error) {
 
 func (v *App) writeObject(w http.ResponseWriter, r *http.Request, obj *blob.ObjectInfo) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", obj.Filename))
-	reader, err := obj.Reader.Get(r.Context())
-	if err != nil {
-		v.serviceErr(w, r, err)
-		return
-	}
-	defer reader.Close()
+	// reader, err := obj.Reader.Get(r.Context())
+	// if err != nil {
+	// 	v.serviceErr(w, r, err)
+	// 	return
+	// }
+	// defer reader.Close()
 
-	if _, err := io.Copy(w, reader); err != nil {
+	defer obj.Data.Close()
+	if _, err := io.Copy(w, obj.Data); err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}

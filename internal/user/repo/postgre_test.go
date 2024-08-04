@@ -1,4 +1,4 @@
-package pguser
+package repo
 
 import (
 	"context"
@@ -8,6 +8,9 @@ import (
 
 	"github.com/odit-bit/cloudfs/internal/user"
 )
+
+const default_host = "localhost"
+const default_port = 5432
 
 func dropTable(db *sql.DB, tableName string) error {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %v;", tableName)
@@ -19,29 +22,11 @@ func dropTable(db *sql.DB, tableName string) error {
 }
 
 func Test_pguser(t *testing.T) {
-	// dbUrl := "postgres://admin:admin@localhost:5432/postgres"
-	username := "admin"
-	password := "admin"
-	dbName := "postgres"
-	tableName := "accounts"
-
+	dbUrl := "postgres://admin:admin@localhost:5432/postgres"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	userDB, err := ConnectDefault(ctx, username, password, dbName)
-	if err != nil {
-		// t.Logf("Skipping test due to error: %v", err)
-		t.Skip(err)
-	}
-
-	defer userDB.Close()
-	defer dropTable(userDB.pg, tableName)
-
-	//migrate
-	if err := migratePG(userDB.pg, tableName); err != nil {
-		t.Fatal(err)
-	}
-
+	userDB, _ := NewUserPG(ctx, dbUrl)
 	acc1 := user.CreateAccount("user1", "12345")
 	if err := userDB.Insert(ctx, acc1); err != nil {
 		t.Fatal(err)

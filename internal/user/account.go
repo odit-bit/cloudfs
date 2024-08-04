@@ -48,3 +48,7 @@ func (acc *Account) CheckPassword(password string) bool {
 func (acc *Account) MustGenerateID() {
 	acc.ID = uuid.New()
 }
+
+
+
+

@@ -1,29 +1,32 @@
-package user
+package repo
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	_ "github.com/glebarez/go-sqlite"
+	"github.com/odit-bit/cloudfs/internal/user"
 )
 
 type DB struct {
 	sqlite *sql.DB
 }
 
-func NewDB() (*DB, error) {
-	db, err := DefaultDB("rwc")
+func NewSQLiteDB(path string) (DB, error) {
+	db, err := DefaultDB("rwc", path)
 	if err != nil {
-		return nil, err
+		return DB{}, err
 	}
 
 	us, err := newAccountDB(db)
 	if err != nil {
-		return nil, err
+		return DB{}, err
 	}
 	return us, nil
 }
 
-func newAccountDB(db *sql.DB) (*DB, error) {
+func newAccountDB(db *sql.DB) (DB, error) {
 	query := `	
 	CREATE TABLE IF NOT EXISTS Account (
 			ID TEXT PRIMARY KEY NOT NULL UNIQUE,
@@ -33,21 +36,23 @@ func newAccountDB(db *sql.DB) (*DB, error) {
 	`
 
 	if _, err := db.ExecContext(context.Background(), query); err != nil {
-		return nil, err
+		return DB{}, err
 	}
 
 	adb := DB{
 		sqlite: db,
 	}
 
-	return &adb, nil
+	return adb, nil
 }
 
-func DefaultDB(mode string) (*sql.DB, error) {
-	defaultPath := fmt.Sprintf("file:account.db?cache=shared&mode=%v", mode)
+func DefaultDB(mode, path string) (*sql.DB, error) {
+	dsn := ":memory:"
+	if path != "" {
+		dsn = fmt.Sprintf("file:%s?cache=shared&mode=%v", path, mode)
+	}
 
-	// Open a test database (this creates a new database in memory)
-	db, err := sql.Open("sqlite3", defaultPath)
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +60,8 @@ func DefaultDB(mode string) (*sql.DB, error) {
 	return db, nil
 }
 
-func (db *DB) Find(ctx context.Context, name string) (*Account, error) {
-	var account Account
+func (db *DB) Find(ctx context.Context, name string) (*user.Account, error) {
+	var account user.Account
 
 	row := db.sqlite.QueryRow("SELECT * FROM Account WHERE Name = ? LIMIT 1", name)
 	err := row.Scan(&account.ID, &account.Name, &account.HashPassword)
@@ -67,7 +72,7 @@ func (db *DB) Find(ctx context.Context, name string) (*Account, error) {
 	return &account, nil
 }
 
-func (db *DB) Insert(ctx context.Context, account *Account) error {
+func (db *DB) Insert(ctx context.Context, account *user.Account) error {
 	query := "INSERT INTO Account (ID, Name, HashPassword) VALUES (?, ?, ?)"
 	_, err := db.sqlite.ExecContext(ctx, query, account.ID, account.Name, account.HashPassword)
 	if err != nil {

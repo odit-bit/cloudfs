@@ -17,7 +17,7 @@ type AuthResult struct {
 
 func (app *Cloudfs) Auth(ctx context.Context, param *AuthParam) (*AuthResult, error) {
 
-	acc, err := app.accountService.Find(ctx, param.Username)
+	acc, err := app.accounts.Find(ctx, param.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -36,10 +36,10 @@ type RegisterParam struct {
 }
 
 func (app *Cloudfs) Register(ctx context.Context, param *RegisterParam) error {
-	if _, err := app.accountService.Find(ctx, param.Username); err != nil {
+	if _, err := app.accounts.Find(ctx, param.Username); err != nil {
 		err = nil
 		acc := user.CreateAccount(param.Username, param.Password)
-		return app.accountService.Insert(ctx, acc)
+		return app.accounts.Insert(ctx, acc)
 	}
 
 	return ErrAccountExist

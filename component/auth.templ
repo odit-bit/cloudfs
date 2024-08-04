@@ -31,6 +31,12 @@ templ Login(loginAPI, registerPageURL string) {
 			input[type="submit"]:hover {
 				background-color: #45a049;
 			}
+			button {
+				background-color: #4caf50;
+			}
+			a {
+				cursor: pointer;
+			}
 		</style>
 		<div id="loginForm">
 			<form action={ templ.URL(loginAPI) } method="POST">
@@ -43,8 +49,9 @@ templ Login(loginAPI, registerPageURL string) {
 				<input type="password" id="password" name="password"/>
 				<br/>
 				<br/>
+				<p>not have account ? <a href="" hx-get={ registerPageURL } hx-swap="innerHtml" hx-target="#loginForm">Register</a> </p>
 				<input type="submit" value="Login"/>
-				<button hx-get={ registerPageURL } hx-swap="outerHtml" hx-target="#loginForm">register</button>
+				// <button hx-get={ registerPageURL } hx-swap="innerHtml" hx-target="#loginForm">register</button>
 			</form>
 		</div>
 		<script>
@@ -83,36 +90,40 @@ templ Register(registerURL string) {
 	<body>
 		<style>
 		    form {
-		        text-align: center;
-		        margin-top: 20px;
-		    }
-		    input[type="text"],
-		    input[type="password"],
-		    input[type="email"],
-		    input[type="submit"] {
-		       #width: 100%;
-		        padding: 10px;
-		        margin-bottom: 15px;
-		        border-radius: 5px;
-		        border: 1px solid #ccc;
-		    }
-		    input[type="submit"] {
-		        background-color: #4caf50;
-		        color: white;
-		        cursor: pointer;
-		    }
-		    input[type="submit"]:hover {
-		        background-color: #45a049;
-		    }
+				text-align: center;
+				margin-top: 20px;
+			}
+			input[type="text"],
+			input[type="password"],
+			input[type="email"],
+			input[type="submit"] {
+				#width: 100%;
+				padding: 10px;
+				margin-bottom: 15px;
+				border-radius: 5px;
+				border: 1px solid #ccc;
+			}
+			input[type="submit"] {
+				background-color: #4caf50;
+				color: white;
+				cursor: pointer;
+			}
+			input[type="submit"]:hover {
+				background-color: #45a049;
+			}
 		</style>
-		<div class="container">
-			<h2>Registration</h2>
+		<div>
 			<form action={ templ.URL(registerURL) } method="POST">
-				<label for="username">Username</label>
-				<input type="text" id="username" name="username" required/>
-				<label for="password">Password</label>
-				<input type="password" id="password" name="password" required/>
-				<input type="submit" value="Register"/>
+				<label for="username">Username:</label>
+				<br/>
+				<input type="text" id="username" name="username"/>
+				<br/>
+				<label for="password">Password:</label>
+				<br/>
+				<input type="password" id="password" name="password"/>
+				<br/>
+				<br/>
+				<input type="submit" value="Submit"/>
 			</form>
 		</div>
 	</body>

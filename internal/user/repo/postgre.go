@@ -1,4 +1,4 @@
-package pguser
+package repo
 
 import (
 	"context"
@@ -10,22 +10,12 @@ import (
 )
 
 const default_table_name = "accounts"
-const default_host = "localhost"
-const default_port = 5432
 
-var DefaultEndpoint = "postgres://admin:admin@localhost:5432/postgres"
-
-type DB struct {
+type userPG struct {
 	pg *sql.DB
 }
 
-// dbURL := "postgres://username:password@localhost:5432/database_name"
-func ConnectDefault(ctx context.Context, username, password, dbName string) (*DB, error) {
-	uri := fmt.Sprintf("postgres://%v:%v@%v:%d/%v", username, password, default_host, default_port, dbName)
-	return NewDB(ctx, uri)
-}
-
-func NewDB(ctx context.Context, uri string) (*DB, error) {
+func NewUserPG(ctx context.Context, uri string) (*userPG, error) {
 	db, err := sql.Open("pgx", uri)
 	if err != nil {
 		return nil, err
@@ -39,7 +29,7 @@ func NewDB(ctx context.Context, uri string) (*DB, error) {
 		return nil, err
 	}
 
-	adb := DB{
+	adb := userPG{
 		pg: db,
 	}
 
@@ -72,11 +62,11 @@ func migratePG(db *sql.DB, tableName string) error {
 	return nil
 }
 
-func (db *DB) Close() error {
+func (db *userPG) Close() error {
 	return db.pg.Close()
 }
 
-func (db *DB) Find(ctx context.Context, name string) (*user.Account, error) {
+func (db *userPG) Find(ctx context.Context, name string) (*user.Account, error) {
 	var account user.Account
 
 	row := db.pg.QueryRow("SELECT * FROM accounts WHERE Name = $1 LIMIT 1", name)
@@ -88,7 +78,7 @@ func (db *DB) Find(ctx context.Context, name string) (*user.Account, error) {
 	return &account, nil
 }
 
-func (db *DB) Insert(ctx context.Context, account *user.Account) error {
+func (db *userPG) Insert(ctx context.Context, account *user.Account) error {
 	query := "INSERT INTO accounts (ID, Name, HashPassword) VALUES ($1, $2, $3)"
 	_, err := db.pg.ExecContext(ctx, query, account.ID, account.Name, account.HashPassword)
 	if err != nil {

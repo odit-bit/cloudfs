@@ -1,4 +1,4 @@
-package tokenpg
+package pgtoken
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/odit-bit/cloudfs/internal/blob"
+	
+	"github.com/odit-bit/cloudfs/internal/token"
 	"github.com/odit-bit/cloudfs/service"
 )
 
@@ -17,6 +17,16 @@ var _ service.TokenStore = (*DB)(nil)
 
 type DB struct {
 	*sql.DB
+}
+
+// Get implements service.TokenStore.
+func (d *DB) Get(ctx context.Context, tokenString string) (*token.ShareToken, bool, error) {
+	panic("unimplemented")
+}
+
+// Put implements service.TokenStore.
+func (d *DB) Put(ctx context.Context, token *token.ShareToken) error {
+	panic("unimplemented")
 }
 
 func NewDB(ctx context.Context, uri string) (*DB, error) {
@@ -72,7 +82,7 @@ func (txn *txn) Cancel() error {
 	return txn.tx.Rollback()
 }
 
-func (txn *txn) Put(ctx context.Context, token *blob.ShareToken) error {
+func (txn *txn) Put(ctx context.Context, token *token.ShareToken) error {
 	query := `
 		INSERT INTO share_tokens (key, user_id, filename, expire_at) 
 		VALUES ($1, $2, $3, $4)
@@ -81,53 +91,29 @@ func (txn *txn) Put(ctx context.Context, token *blob.ShareToken) error {
 			key = EXCLUDED.key,
 			expire_at = EXCLUDED.expire_at;
 	`
-	_, err := txn.tx.ExecContext(ctx, query, token.Key, token.UserID, token.Filename, token.Expire.Unix())
+	_, err := txn.tx.ExecContext(ctx, query, token.Key(), token.UserID(), token.Filename(), token.ValidUntil().Unix())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (txn *txn) Get(ctx context.Context, tokenString string) (*blob.ShareToken, error) {
+func (txn *txn) Get(ctx context.Context, tokenString string) (*token.ShareToken, error) {
 
 	row := txn.tx.QueryRowContext(ctx, "SELECT * FROM share_tokens WHERE key = $1 LIMIT 1", tokenString)
-	var st blob.ShareToken
 	var unix int64
-	err := row.Scan(&st.Key, &st.UserID, &st.Filename, &unix)
+	var key, userID, filename string
+	var expire time.Time
+	err := row.Scan(&key, &userID, &filename, &unix)
 	if err != nil {
 		return nil, err
 	}
-	st.Expire = time.Unix(unix, 0)
-
-	return &st, nil
+	expire = time.Unix(unix, 0)
+	tkn := token.FromStore(key, userID, filename, expire)
+	return tkn, nil
 }
 
 func (txn *txn) Delete(ctx context.Context, key string) error {
 	_, err := txn.tx.ExecContext(ctx, "DELETE FROM share_tokens WHERE key = $1;")
 	return err
-}
-
-func (t *DB) Query(ctx context.Context, fn func(txn service.TokenTxn) error) error {
-
-	tx, err := t.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return err
-	}
-
-	txn := txn{
-		tx: tx,
-	}
-
-	return fn(&txn)
-
-}
-
-// Generate implements service.TokenStore.
-func (t *DB) Generate(ctx context.Context, bucket string, filename string, dur time.Duration) (string, error) {
-	panic("unimplemented")
-}
-
-// Validate implements service.TokenStore.
-func (t *DB) Validate(ctx context.Context, tokenString string) (userID string, filename string, ok bool) {
-	panic("unimplemented")
 }

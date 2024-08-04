@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
 	"github.com/odit-bit/cloudfs/internal/blob"
+	"github.com/odit-bit/cloudfs/internal/token"
 )
 
 var (
@@ -15,10 +15,15 @@ var (
 	ErrBucketNotExisted   = errors.New("bucket not existed")
 	ErrBucketExisted      = errors.New("bucket already exist")
 	ErrAccountExist       = errors.New("account already exist")
-	ErrTokenExpired       = errors.New("invalid token")
+	ErrTokenExpired       = errors.New("token is expired")
+	ErrTokenNotExisted    = errors.New("invalid token")
 	ErrFileNotExisted     = errors.New("file not found")
 
 	ErrUpload = errors.New("upload error")
+)
+
+const (
+	_DEFAULT_FILE_SHARE_TTL = 24 * time.Hour
 )
 
 type UploadParam struct {
@@ -57,12 +62,15 @@ func (param *UploadParam) validate() error {
 
 }
 
-func (app *Cloudfs) Upload(ctx context.Context, param *UploadParam) (*blob.ObjectInfo, error) {
+type UploadInfo struct {
+}
+
+func (app *Cloudfs) Upload(ctx context.Context, param *UploadParam) (UploadInfo, error) {
 	if err := param.validate(); err != nil {
-		return nil, err
+		return UploadInfo{}, err
 	}
 
-	obj, err := app.blobService.Put(
+	_, err := app.blobs.Put(
 		ctx,
 		param.UserID,
 		param.Filename,
@@ -71,10 +79,10 @@ func (app *Cloudfs) Upload(ctx context.Context, param *UploadParam) (*blob.Objec
 		param.ContentType,
 	)
 	if err != nil {
-		return nil, err
+		return UploadInfo{}, err
 	}
 
-	return obj, err
+	return UploadInfo{}, err
 }
 
 type DownloadParam struct {
@@ -82,64 +90,36 @@ type DownloadParam struct {
 	Filename string
 }
 
-type sharingObj struct {
-	Owner      string
-	Filename   string
-	Token      string
-	ValidUntil time.Time
-}
-
-func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*sharingObj, error) {
-	_, err := app.blobService.Get(ctx, userID, filename)
+func (app *Cloudfs) SharingFile(ctx context.Context, userID, filename string) (*token.ShareToken, error) {
+	_, err := app.blobs.Get(ctx, userID, filename)
 	if err != nil {
 		return nil, err
 	}
 
-	var sObj sharingObj
-	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
-		tkn := blob.NewShareToken(userID, filename, 24*time.Hour)
-		if err := txn.Put(ctx, tkn); err != nil {
-			txn.Cancel()
-			return err
-		}
+	tkn := token.NewShareToken(userID, filename, _DEFAULT_FILE_SHARE_TTL)
 
-		sObj.Owner = userID
-		sObj.Filename = filename
-		sObj.Token = tkn.Key
-		sObj.ValidUntil = tkn.Expire
-
-		return txn.Commit()
-	}); err != nil {
+	if err := app.tokens.Put(ctx, tkn); err != nil {
 		return nil, err
 	}
-	return &sObj, nil
+
+	return tkn, nil
 }
 
 func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string) (*blob.ObjectInfo, error) {
 
-	var userID, filename string
-	if err := app.tokenService.Query(ctx, func(txn TokenTxn) error {
-		st, err := txn.Get(ctx, token)
-		if err != nil {
-			txn.Cancel()
-			return fmt.Errorf("token not Found")
-		}
-
-		if ok := st.IsNotExpire(); !ok {
-			if err := txn.Delete(ctx, st.Key); err != nil {
-				txn.Cancel()
-				return ErrTokenExpired
-			}
-		}
-
-		userID = st.UserID
-		filename = st.Filename
-		return txn.Commit()
-	}); err != nil {
+	tkn, ok, err := app.tokens.Get(ctx, token)
+	if err != nil {
 		return nil, err
 	}
+	if !ok {
+		return nil, ErrTokenNotExisted
+	}
 
-	info, err := app.blobService.Get(ctx, userID, filename)
+	if !tkn.IsNotExpire() {
+		return nil, ErrTokenExpired
+	}
+
+	info, err := app.blobs.Get(ctx, tkn.UserID(), tkn.Filename())
 	if err != nil {
 		return nil, ErrFileNotExisted
 	}
@@ -148,37 +128,31 @@ func (app *Cloudfs) DownloadSharedFile(ctx context.Context, token string) (*blob
 }
 
 func (app *Cloudfs) Object(ctx context.Context, userID, filename string) (*blob.ObjectInfo, error) {
-	return app.blobService.Get(ctx, userID, filename)
+	return app.blobs.Get(ctx, userID, filename)
 }
 
 func (app *Cloudfs) Delete(ctx context.Context, userID, filename string) error {
-	return app.blobService.Delete(ctx, userID, filename)
+	return app.blobs.Delete(ctx, userID, filename)
 }
 
 func (app *Cloudfs) Download(ctx context.Context, w io.Writer, param *DownloadParam) (any, error) {
 
-	obj, err := app.blobService.Get(ctx, param.UserID, param.Filename)
+	obj, err := app.blobs.Get(ctx, param.UserID, param.Filename)
 	if err != nil {
 		return nil, err
 	}
-
-	src, err := obj.Reader.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer src.Close()
-
-	_, err = io.Copy(w, src)
+	defer obj.Data.Close()
+	_, err = io.Copy(w, obj.Data)
 
 	return nil, err
 }
 
-func (app *Cloudfs) ListObject(ctx context.Context, bucket string, limit int, lastKey string) ([]*blob.ObjectInfo, error) {
-	iter := app.blobService.ObjectIterator(ctx, bucket, limit, lastKey)
+func (app *Cloudfs) ListObject(ctx context.Context, bucket string, limit int, lastKey string) ([]blob.ObjectInfo, error) {
+	iter := app.blobs.ObjectIterator(ctx, bucket, limit, lastKey)
 	if iter.Error() != nil {
 		return nil, iter.Error()
 	}
-	infos := make([]*blob.ObjectInfo, limit)
+	infos := make([]blob.ObjectInfo, limit)
 
 	count := 0
 	for iter.Next() {

@@ -26,6 +26,12 @@ services:
       - "5432"
     # ports:
     #   - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d postgres" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
@@ -33,6 +39,16 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - user_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    hostname: redis
+    expose:
+      - "6379" #default redis port
+    ports:
+      - "6379:6379"
+    environment:
+      - name=value
 
   caddy:
     image: caddy:alpine
@@ -56,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # image: oditbit/cloudfs-web
+    hostname: web
     deploy:
       mode: replicated
       replicas: 1
@@ -66,10 +82,15 @@ services:
         max_attempts: 3
         window: 60s
     depends_on:
-      - minio1
-      - pg
-    hostname: web
+      pg:
+        condition: service_healthy
+        restart: true
+      minio1:
+        condition: service_started
+      redis:
+        condition: service_started
     restart: on-failure
+    command: -production
     expose:
       - "8181"
     # ports:
@@ -77,11 +98,13 @@ services:
     # volumes:
     #   - token_data:/token
     environment:
-      - USER_DB_URI=postgres://admin:admin@pg:5432/postgres
-      - TOKEN_DB_URI=postgres://admin:admin@pg:5432/postgres
-      - BLOB_STORAGE_ENDPOINT=minio1:9000
-      - BLOB_STORAGE_USER=access-key
-      - BLOB_STORAGE_PASSWORD=secret-access-key
+      - BLOB_MINIO_ENDPOINT=minio1:9000
+      - BLOB_MINIO_ACCESS_KEY=access-key
+      - BLOB_MINIO_SECRET_ACCESS_KEY=secret-access-key
+
+      - USER_PG_URI=postgres://admin:admin@pg:5432/postgres
+      - TOKEN_REDIS_URI=redis://:@redis:6379/0
+      - SESSION_REDIS_URI=redis://:@redis:6379/0
 
 volumes:
   blob_data:

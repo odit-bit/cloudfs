@@ -1,4 +1,4 @@
-package minioblob
+package repo
 
 import (
 	"context"
@@ -39,10 +39,6 @@ func connectMinio(endpoint, accessKeyID, secretAccessKey string, secure bool) (*
 		return nil, fmt.Errorf("storage endpoint is offline, api-endpoint: %v", cli.EndpointURL().String())
 	}
 
-	// if err := cli.MakeBucket(context.TODO(), "init-bucket", minio.MakeBucketOptions{}); err != nil {
-	// 	panic(err)
-	// }
-
 	return cli, nil
 
 }
@@ -52,10 +48,10 @@ type MinioAdapter struct {
 	minioCli *minio.Client
 }
 
-func New(addr, key, secret string) (*MinioAdapter, error) {
-	// 	endpoint := addr          //"localhost:9000"
-	// 	accessKeyID := key        //"admin"
-	// 	secretAccessKey := secret //"admin12345"
+func NewMinioBlob(addr, key, secret string) (*MinioAdapter, error) {
+	// 	endpoint := addr
+	// 	accessKeyID := key
+	// 	secretAccessKey := secret
 	// secure := false
 
 	minioCli, err := connectMinio(addr, key, secret, false)
@@ -124,7 +120,14 @@ func (s *MinioAdapter) put(ctx context.Context, bucketName, key string, file io.
 }
 
 func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*blob.ObjectInfo, error) {
-	stat, err := s.minioCli.StatObject(ctx, bucketName, filename, minio.GetObjectOptions{})
+	// stat, err := s.minioCli.StatObject(ctx, bucketName, filename, minio.GetObjectOptions{})
+
+	data, err := s.minioCli.GetObject(ctx, bucketName, filename, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	stat, err := data.Stat()
 	if err != nil {
 		return nil, err
 	}
@@ -136,9 +139,7 @@ func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*b
 	objInfo.Sum = stat.ChecksumSHA256
 	objInfo.Size = stat.Size
 	objInfo.LastModified = stat.LastModified
-
-	objInfo.Reader = s.GetObject(bucketName, filename)
-
+	objInfo.Data = data
 	return &objInfo, nil
 }
 
@@ -163,21 +164,14 @@ func (s *MinioAdapter) GetShareUrl(bucket, key string) blob.ShareFunc {
 	}
 }
 
-func (s *MinioAdapter) GetObject(bucket, key string) blob.ReaderFunc {
-	return func(ctx context.Context) (io.ReadCloser, error) {
-		obj, err := s.minioCli.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
-		return obj, err
-	}
-}
-
-func (s *MinioAdapter) ObjectIterator(ctx context.Context, bucketName string, limit int, lastFilename string) *blob.Iterator {
+func (s *MinioAdapter) ObjectIterator(ctx context.Context, bucketName string, limit int, lastFilename string) blob.Iterator {
 	res := s.minioCli.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
 		Prefix:     "",
 		MaxKeys:    limit,
 		StartAfter: lastFilename,
 	})
 
-	objC := make(chan *blob.ObjectInfo)
+	objC := make(chan blob.ObjectInfo)
 
 	go func() {
 		for c := range res {
@@ -192,7 +186,7 @@ func (s *MinioAdapter) ObjectIterator(ctx context.Context, bucketName string, li
 
 			// the last object from minio will always contain Err
 			if c.Err == nil {
-				objC <- &obj
+				objC <- obj
 			}
 		}
 		close(objC)
@@ -202,7 +196,7 @@ func (s *MinioAdapter) ObjectIterator(ctx context.Context, bucketName string, li
 		UserID: "",
 		C:      objC,
 	}
-	return &iter
+	return iter
 }
 
 // func (s *MinioAdapter) MakeBucket(ctx context.Context, bucketName, region string) error {

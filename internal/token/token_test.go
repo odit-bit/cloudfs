@@ -1,4 +1,4 @@
-package blob
+package token
 
 import (
 	"testing"

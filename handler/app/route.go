@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
 )
 
 const (
@@ -29,22 +28,22 @@ func (v *App) router(middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	mux := chi.NewRouter()
 
 	mux.Use(middlewares...)
-	mux.Use(cors.Handler(cors.Options{
-		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		AllowedOrigins: []string{"https://*", "http://*"},
-		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
+	// mux.Use(cors.Handler(cors.Options{
+	// 	// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+	// 	AllowedOrigins: []string{"https://*", "http://*"},
+	// 	// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+	// 	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	// 	AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+	// 	ExposedHeaders:   []string{"Link"},
+	// 	AllowCredentials: true,
+	// 	MaxAge:           300, // Maximum value not ignored by any of major browsers
+	// }))
 
 	mux.Use(v.session.LoadAndSave)
 
 	// health
 	mux.Get(_health, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("index page"))
+		w.Write([]byte("hay"))
 	})
 
 	//authentication

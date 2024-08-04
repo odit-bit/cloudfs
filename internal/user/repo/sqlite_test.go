@@ -1,13 +1,15 @@
-package user
+package repo
 
 import (
 	"context"
 	"testing"
+
+	"github.com/odit-bit/cloudfs/internal/user"
 )
 
 func TestInsertAndFindAccount(t *testing.T) {
 
-	db, err := DefaultDB("memory")
+	db, err := DefaultDB(":memory:", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,7 +20,7 @@ func TestInsertAndFindAccount(t *testing.T) {
 	}
 
 	// Test Insert Account
-	testAccount := Account{
+	testAccount := user.Account{
 		Name:         "TestUser",
 		HashPassword: "testpassword",
 	}

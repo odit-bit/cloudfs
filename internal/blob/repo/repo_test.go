@@ -1,4 +1,4 @@
-package localblob
+package repo_test
 
 import (
 	"bytes"
@@ -6,16 +6,15 @@ import (
 	"io"
 	"testing"
 
+	"github.com/odit-bit/cloudfs/internal/blob"
+	"github.com/odit-bit/cloudfs/internal/blob/repo"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_(t *testing.T) {
-	v, err := New("./zzz/temp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer v.purge()
-
+func Test_afero(t *testing.T) {
+	ctx := context.Background()
+	v, _ := repo.NewInMemBlob() //repo.NewAferoBlob("")
+	_ = v
 	type obj struct {
 		bucket   string
 		filename string
@@ -27,28 +26,31 @@ func Test_(t *testing.T) {
 		filename: "my-file",
 		data:     []byte("content-file-1"),
 	}
-
-	//Put
-	info, err := v.Put(context.TODO(), input.bucket, input.filename, bytes.NewReader(input.data), int64(len(input.data)), "")
+	info, err := v.Put(ctx, input.bucket, input.filename, bytes.NewReader(input.data), int64(len(input.data)), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, input.filename, info.Filename)
 
 	//Get
-	actual, err := v.Get(context.Background(), input.bucket, input.filename)
+	actual, err := v.Get(ctx, input.bucket, input.filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rc, err := actual.Reader.Get(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rc.Close()
+	defer actual.Data.Close()
+	assert.Equal(t, input.filename, info.Filename)
+	data, _ := io.ReadAll(actual.Data)
+	assert.Equal(t, input.data, data)
 
-	data := bytes.Buffer{}
-	io.Copy(&data, rc)
-	assert.Equal(t, string(input.data), data.String())
+	// list
+	iter := v.ObjectIterator(ctx, input.bucket, 1000, "")
+	list := []blob.ObjectInfo{}
+	for obj := range iter.C {
+		list = append(list, obj)
+	}
+	if len(list) == 0 {
+		t.Fatal("list length should 1")
+	}
+	assert.Equal(t, input.filename, list[0].Filename)
 
 	//delete
 	if err := v.Delete(context.Background(), input.bucket, input.filename); err != nil {
@@ -56,12 +58,11 @@ func Test_(t *testing.T) {
 	}
 }
 
-func Test_iterator(t *testing.T) {
-	v, err := New("./zzz/temp2")
+func Test_local_iterator(t *testing.T) {
+	v, err := repo.NewInMemBlob()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer v.purge()
 
 	type obj struct {
 		bucket   string

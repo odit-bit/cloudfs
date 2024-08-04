@@ -2,7 +2,6 @@ package blob
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -12,9 +11,9 @@ import (
 func Test_iterator(t *testing.T) {
 
 	tc := []struct {
-		input []*ObjectInfo
+		input []ObjectInfo
 	}{
-		{input: []*ObjectInfo{
+		{input: []ObjectInfo{
 			{
 				UserID:   "1",
 				Filename: "obj1",
@@ -24,7 +23,7 @@ func Test_iterator(t *testing.T) {
 				Filename: "obj2",
 			},
 		}},
-		{input: []*ObjectInfo{}},
+		{input: []ObjectInfo{}},
 	}
 
 	// //
@@ -39,7 +38,7 @@ func Test_iterator(t *testing.T) {
 	// }
 
 	for _, test := range tc {
-		objC := make(chan *ObjectInfo, 10)
+		objC := make(chan ObjectInfo, 10)
 
 		for _, v := range test.input {
 			objC <- v
@@ -49,7 +48,7 @@ func Test_iterator(t *testing.T) {
 		it := Iterator{
 			UserID: "",
 			C:      objC,
-			obj:    &ObjectInfo{},
+			obj:    ObjectInfo{},
 			// err:    nil,
 		}
 
@@ -72,26 +71,13 @@ func Test_readBlob(t *testing.T) {
 	buf := bytes.NewBuffer(data)
 	rc := io.NopCloser(buf)
 	obj := ObjectInfo{
-		// UserID:       "123",
-		// Filename:     "file-123",
-		// ContentType:  "secret",
-		// Sum:          "",
-		// Size:         int64(len(data)),
-		// LastModified: time.Time{},
-		Reader: ReaderFunc(func(ctx context.Context) (io.ReadCloser, error) {
-			return rc, nil
-		}),
-		// isReaded: false,
+		Size: int64(len(data)),
+		Data: rc,
 	}
 
 	dst := bytes.Buffer{}
-	src, err := obj.Reader.Get(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer src.Close()
-
-	n, err := io.Copy(&dst, src)
+	defer obj.Data.Close()
+	n, err := io.Copy(&dst, obj.Data)
 	if err != nil {
 		t.Fatal(err)
 	}

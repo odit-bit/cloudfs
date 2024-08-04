@@ -90,7 +90,7 @@ func (v *App) LoginService(redirecURL string) http.HandlerFunc {
 	}
 }
 
-// return midlleware like handler that place in front of handler that needed for auth
+// return midlleware-like handler that place in front of handler that needed for auth
 func (v *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer fd.Close()
-	obj, err := v.svc.Upload(r.Context(), &service.UploadParam{
+	result, err := v.svc.Upload(r.Context(), &service.UploadParam{
 		UserID:      userID,
 		Filename:    fd.Filename,
 		Size:        -1,
@@ -171,7 +171,7 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		v.serviceErr(w, r, err)
 		return
 	}
-	_ = obj
+	_ = result
 	w.Header().Set("HX-Trigger", "newObject")
 	w.WriteHeader(http.StatusOK)
 }
@@ -250,7 +250,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			return
 		}
 		filename := r.URL.Query().Get("filename")
-		obj, err := v.svc.SharingFile(r.Context(), userID, filename)
+		tkn, err := v.svc.SharingFile(r.Context(), userID, filename)
 		if err != nil {
 			v.serviceErr(w, r, err)
 			return
@@ -258,7 +258,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 
 		// w.Header().Set("Path", obj.Token)
 		q := url.Values{}
-		q.Set("token", obj.Token)
+		q.Set("token", tkn.Key())
 		shareURL := url.URL{
 			// Scheme:   r.URL.Scheme,
 			Host:     r.Host,
@@ -266,7 +266,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			RawQuery: q.Encode(),
 		}
 
-		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(obj.ValidUntil))
+		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(tkn.ValidUntil()))
 		comp.Render(ctx, w)
 	}
 }

@@ -60,7 +60,7 @@ import (
 // }
 
 type ListAttribute struct {
-	Objects []*blob.ObjectInfo
+	Objects []blob.ObjectInfo
 
 	//download
 	DownloadAPI string
@@ -71,11 +71,11 @@ type ListAttribute struct {
 	ShareFileAPI string
 }
 
-func (la *ListAttribute) LastObject() (bool, *blob.ObjectInfo) {
+func (la *ListAttribute) LastObject() (bool, blob.ObjectInfo) {
 	if len(la.Objects) > 0 {
 		return true, la.Objects[len(la.Objects)-1]
 	}
-	return false, nil
+	return false, blob.ObjectInfo{}
 }
 
 func (la *ListAttribute) Length() int {
@@ -102,37 +102,6 @@ func (la *ListAttribute) NextListView() string {
 }
 
 templ ListData(attr *ListAttribute) {
-	// <style>
-	// 		table {
-	// 			text-align: center;
-	// 			border-collapse: collapse;
-	// 			width: 100%;
-	// 			margin: 0 auto;
-	// 		}
-	// 		th, td {
-	// 			padding: 12px;
-	// 			text-align: left;
-	// 			border-bottom: 1px solid #DDD;
-	// 		}
-	// 		th {
-	// 			background-color: #f2f2f2;
-	// 			font-weight: bold;
-	// 			text-transform: uppercase;
-	// 		}
-	// 		tr:hover {
-	// 			background-color: #D6EEEE;
-	// 		}
-	// 		tr:nth-child(even) {
-	// 			background-color: #f2f2f2;
-	// 		}
-	// 		a {
-	// 			text-decoration: none;
-	// 			color: #0066cc;
-	// 		}
-	// 		a:hover {
-	// 			text-decoration: underline;
-	// 		}
-	// 	</style>
 	if attr.Length() != 0 {
 		<table class="uk-table uk-table-hover uk-table-justify">
 			<tbody>
@@ -158,6 +127,10 @@ templ ListData(attr *ListAttribute) {
 				}
 			</tbody>
 		</table>
+	} else {
+		<div>
+			no data 
+		</div>
 	}
 }
 
