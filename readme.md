@@ -55,7 +55,7 @@ SESSION_REDIS_URI
 ```
 
 ### Docker compose
-Example to use remote infrastructure for the service with caddy as reverse proxy, Docker will build and fetch the neccessary image. [visit localhost:2080 ](http://localhost:2080) 
+Example to use remote infrastructure for the service with caddy as reverse proxy, Docker will build from `Dockerfile` and fetch the neccessary image. [visit localhost:2080 ](http://localhost:2080) 
 ```shell
 # start
 docker compose up -d
