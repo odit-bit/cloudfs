@@ -30,16 +30,15 @@ func main() {
 
 	ctx := context.TODO()
 
+	sess := scs.New() //session management
 	var cfs service.Cloudfs
 	switch isProd {
 	case false:
 		cfs = InitDevService()
 	default:
+		sess.Store = sessionredis.NewSessionRedis(os.Getenv(SESSION_REDIS_URI))
 		cfs = InitProductionService()
 	}
-
-	sess := scs.New() //session management
-	sess.Store = sessionredis.NewSessionRedis(os.Getenv(SESSION_REDIS_URI))
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
@@ -59,7 +58,7 @@ func main() {
 
 func InitDevService() service.Cloudfs {
 	//token
-	ts, err := repoToken.NewInMemToken("")
+	ts, err := repoToken.NewInMemory()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,16 +70,15 @@ func InitDevService() service.Cloudfs {
 	}
 
 	// user
-	us, err := repoUser.NewSQLiteDB("")
+	us, err := repoUser.NewInMemory()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	svc, err := service.NewCloudfs(&ts, &bs, &us)
+	svc, err := service.NewCloudfs(ts, &bs, us)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return svc
 }
 

@@ -141,6 +141,7 @@ func connectBadger(path string) *badger.DB {
 
 }
 
+// DEPCRECATED subject to remove
 func NewInMemToken(path string) (Manager, error) {
 	return Manager{
 		db: connectBadger(path),

@@ -13,6 +13,7 @@ type DB struct {
 	sqlite *sql.DB
 }
 
+// DEPCRECATED subject to remove
 func NewSQLiteDB(path string) (DB, error) {
 	db, err := DefaultDB("rwc", path)
 	if err != nil {
