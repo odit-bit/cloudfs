@@ -1,16 +1,15 @@
- ## Getting Started
- Remote file storage application.
- 
-### Clone repository
-the simplest way to try this, is directly build from the source or use `go run` command
+## Getting Started 
+The simplest way to try this by directly build from the source or use `go run` command
 
 ```shell
 #clone git
 git clone https://github.com/odit-bit/cloudfs.git
+cd cloudfs
+go mod download
 
 # run command
-cd cloudfs
 go run ./cmd/web 
+# listen at localhost:8181
 ```
 it will run the web server (html page) with all service using in-memory implementation and will be blank-state for every time it start [visit localhost:8181 ](http://localhost:8181) 
 
@@ -55,10 +54,11 @@ SESSION_REDIS_URI
 ```
 
 ### Docker compose
-Example to use remote infrastructure for the service with caddy as reverse proxy, Docker will build from `Dockerfile` and fetch the neccessary image. [visit localhost:2080 ](http://localhost:2080) 
+Example to use remote infrastructure for the service with caddy as reverse proxy, Docker will build from `Dockerfile` and fetch the neccessary image.
 ```shell
 # start
 docker compose up -d
+# visit caddy endpoint http://localhost:2080
 
 # stop
 docker compose down -v
