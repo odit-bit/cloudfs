@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/dustin/go-humanize"
@@ -52,9 +51,7 @@ func (app *App) Run(ctx context.Context, addr string, middlewares ...func(http.H
 		}
 		close(sig)
 		app.logger.Info("shutdown server", "type", v)
-		ctx2, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		srv.Shutdown(ctx2)
+		srv.Close()
 	}(ctx)
 
 	app.logger.Info(fmt.Sprintf("listen on %s", addr))

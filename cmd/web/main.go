@@ -24,7 +24,7 @@ func main() {
 	var port int
 	var host string
 	flag.BoolVar(&isProd, "production", false, "if true will use production env, default false")
-	flag.StringVar(&host, "host", "0.0.0.0", "host name")
+	flag.StringVar(&host, "host", "localhost", "host name")
 	flag.IntVar(&port, "port", 8181, "port")
 	flag.Parse()
 
