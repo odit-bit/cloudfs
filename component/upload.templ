@@ -41,8 +41,15 @@ templ Upload(uploadURL string) {
 
 		</style>
 		<div class="upload">
-			<form id="uploadForm" hx-encoding="multipart/form-data" hx-post={ uploadURL } hx-target=".response" hx-on::after-request=" if(event.detail.successful) this.reset()">
-				<input type="file" name="file"/>
+			<form 
+			id="uploadForm" 
+			hx-encoding="multipart/form-data" 
+			hx-post={ uploadURL } 
+			hx-target=".response" 
+			>
+				<input id="inputFile" type="file" name="file"/>
+				<label for="fileSize">Total size:</label>
+				<input id="fileSize" type="text" name="size">0</input>
 				<input type="submit" value="Upload"/>
 				// <button onclick="htmx.trigger('#uploadForm', 'htmx:abort')">Cancel Request</button>
 			</form>
@@ -55,25 +62,39 @@ templ Upload(uploadURL string) {
 				<p id="responseText"></p>
 			</div>
 		</div>
+
 		<script>
-       htmx.on('#uploadForm', 'htmx:xhr:progress', function(evt) {
-          htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-        });
-
-		// Handle response and show modal
-        document.body.addEventListener('htmx:response', function(event) {
-            const responseText = event.detail.xhr.responseText.trim();
-            const responseModal = document.getElementById('responseModal');
-            const responseTextElement = document.getElementById('responseText');
+			htmx.on('#uploadForm', 'htmx:xhr:progress', function(evt) {
+				htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
+			});
 
 
-            responseModal.style.display = 'block';
+			// Handle response and show modal
+			console.log("lalala")
+			document.addEventListener('htmx:response', function(event) {
+				const responseText = event.detail.xhr.responseText.trim();
+				const responseModal = document.getElementById('responseModal');
+				const responseTextElement = document.getElementById('responseText');
 
-            // Close modal after 3 seconds (adjust as needed)
-            setTimeout(function() {
-                responseModal.style.display = 'none';
-            }, 3000);
-        });		
-    </script>
+
+				responseModal.style.display = 'block';
+
+				// Close modal after 3 seconds (adjust as needed)
+				setTimeout(function() {
+					responseModal.style.display = 'none';
+				}, 3000);
+			});		
+
+			// add custom Headers
+			let fileinput = document.getElementById("inputFile");
+			fileinput.addEventListener("change",()=> {
+				fileSize = fileinput.files[0].size
+				document.getElementById("fileSize").textContent = fileSize
+				console.log(fileSize)
+			},false);
+			document.body.addEventListener('htmx:configRequest', function(event) {
+				event.detail.headers['X-File-Size'] = fileSize // add size to header
+			});
+    	</script>
 	</body>
 }

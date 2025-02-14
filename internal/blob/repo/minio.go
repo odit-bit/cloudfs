@@ -71,9 +71,7 @@ func (s *MinioAdapter) CreateBucket(ctx context.Context, bucketName string) (any
 	}
 
 	if !ok {
-		err := s.minioCli.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{
-			Region: "arab-selatan",
-		})
+		err := s.minioCli.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +85,7 @@ func (s *MinioAdapter) Delete(ctx context.Context, bucketName, key string) error
 }
 
 func (s *MinioAdapter) Put(ctx context.Context, bucketName, key string, file io.Reader, size int64, contentType string) (*blob.ObjectInfo, error) {
-	return s.put(ctx, bucketName, key, file, -1, contentType)
+	return s.put(ctx, bucketName, key, file, size, contentType)
 }
 
 func (s *MinioAdapter) put(ctx context.Context, bucketName, key string, file io.Reader, size int64, contentType string) (*blob.ObjectInfo, error) {

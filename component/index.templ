@@ -11,9 +11,9 @@ templ Index(uploadURL, listViewURL string) {
 			<script src="https://cdn.jsdelivr.net/npm/uikit@3.21.7/dist/js/uikit.min.js"></script>
 			<script src="https://cdn.jsdelivr.net/npm/uikit@3.21.7/dist/js/uikit-icons.min.js"></script>
 			<!--HTMX -->
-			<script src="https://unpkg.com/htmx.org@1.9.9"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 			<!--hyperscript -->
-			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<!-- <script src="https://unpkg.com/hyperscript.org@0.9.12"></script> -->
 			<style>
 				body {
 					background-color: #f4f4f4;
@@ -89,59 +89,72 @@ templ Index(uploadURL, listViewURL string) {
 			</style>
 		</head>
 		<body>
-			// <ul>
-			// 	for _, h := range attr.Headers {
-			// 		<li><a hx-get={ h.Endpoint } hx-target=".result" hx-trigger="click" hx-swap="innerHTML">{ h.Name }</a></li>
-			// 	}
-			// 	<li><a href="https://github.com/odit-bit/cloudfs" target="_blank" rel="noopener noreferrer">Github</a></li>
-			// </ul>
-			// <div class="result"></div>
-			// <div class="result" hx-get={ "/list" } hx-trigger="load" hx-swap="innerHTML"></div>
 			<div class="uk-container">
-				//TODO: make sticky
-				//UPLOAD 
-				<div>
-					<div class="uk-text-center uk-position-z-index" uk-sticky="end: !.uk-height-large; offset: 0">
-						<form id="uploadForm" hx-encoding="multipart/form-data" hx-post={ uploadURL } hx-target="#responseModal" hx-on::after-request=" if(event.detail.successful) this.reset()">
-							<input type="file" name="file"/>
-							<input type="submit" value="Upload"/>
-							<progress id="progress" class="htmx-indicator" value="0" max="100"></progress>
-						</form>
-						// <div class="response">
-						// 	<!-- could it be make a modal-->
-						// </div>
-						<!-- Modal for response -->
-						<div class="modal" id="responseModal">
-							<p id="responseText"></p>
-						</div>
-					</div>
-					// LIST 
-					<div>
-						<div hx-get={ listViewURL } hx-trigger="load,newObject from:body" hx-target="#listBody"></div>
-						<div id="listBody"></div>
-						//return list attribute
+				//UPLOAD
+				<div class="uk-text-center uk-position-z-index" uk-sticky="end: !.uk-height-large; offset: 0">
+					<form 
+					id="uploadForm" 
+					hx-encoding="multipart/form-data" 
+					hx-post={ uploadURL } 
+					hx-target="#responseModal" 
+					hx-on::after-request="if(event.detail.successful) this.reset()"
+					>
+						<input 
+							id="inputFile" 
+							type="file" 
+							name="file" 
+						/>
+						<label for="fileSize">Total size:</label>
+						<output id="fileSize">0</output>
+						<button type="submit">upload</button>
+						// <button onclick="htmx.trigger('#uploadForm', 'htmx:abort')">Cancel Request</button>
+						<progress id="progress" class="htmx-indicator" value="0" max="100"></progress>
+					</form>
+					<!-- Modal for response -->
+					<div class="modal" id="responseModal">
+						<p id="responseText"></p>
 					</div>
 				</div>
+
+				// LIST 
+				<div>
+					<div hx-get={ listViewURL } hx-trigger="load,newObject from:body" hx-target="#listBody"></div>
+					<div id="listBody"></div>
+					//return list attribute
+				</div>
 			</div>
+
 			<script>
-			htmx.on('#uploadForm', 'htmx:xhr:progress', function(evt) {
+			htmx.on('#uploadForm','htmx:xhr:progress', function(evt) {
 				htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-				});
+			});
 
-				// // Handle response 
-				// document.body.addEventListener('htmx:response', function(event) {
-				// 	const responseText = event.detail.xhr.responseText.trim();
-				// 	const responseModal = document.getElementById('responseModal');
-				// 	const responseTextElement = document.getElementById('responseText');
+			// add custom Headers
+			let fileinput = document.getElementById("inputFile");
+			fileinput.addEventListener("change",()=> {
+				fileSize = fileinput.files[0].size
+				document.getElementById("fileSize").textContent = fileSize
+				console.log(fileSize)
+			},false);
+
+			document.body.addEventListener('htmx:configRequest', function(event) {
+				event.detail.headers['X-File-Size'] = fileSize // add size to header
+			});
+
+			// Handle response 
+			document.body.addEventListener('htmx:response', function(event) {
+				const responseText = event.detail.xhr.responseText.trim();
+				const responseModal = document.getElementById('responseModal');
+				const responseTextElement = document.getElementById('responseText');
 
 
-				// 	responseModal.style.display = 'block';
+				responseModal.style.display = 'block';
 
-				// 	// Close modal after 3 seconds (adjust as needed)
-				// 	setTimeout(function() {
-				// 		responseModal.style.display = 'none';
-				// 	}, 3000);
-				// });		
+				// Close modal after 3 seconds (adjust as needed)
+				setTimeout(function() {
+					responseModal.style.display = 'none';
+				}, 3000);
+			});		
   		  </script>
 		</body>
 	</html>

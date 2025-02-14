@@ -9,21 +9,28 @@ import (
 	"strconv"
 )
 
-type formData struct {
-	ContentLength int64
-	ContentType   string
-	Filename      string
-	Body          io.ReadCloser
+type fileInfo struct {
+	Size        int64
+	ContentType string
+	Filename    string
+	Body        io.ReadCloser
 }
 
-func (f *formData) Close() error {
+func (f *fileInfo) Close() error {
 	return f.Body.Close()
 }
 
-func handleMultipart(req *http.Request, formName string) (*formData, error) {
-	length, err := strconv.Atoi(req.Header.Get("content-length"))
+func handleMultipart(req *http.Request, formName string) (*fileInfo, error) {
+	fileSize := req.Header.Get("X-File-Size")
+	if fileSize == "" {
+		return nil, fmt.Errorf("invalid 'X-File-Size' value %v", fileSize)
+	}
+	size, err := strconv.ParseInt(req.Header.Get("X-File-Size"), 10, 0)
 	if err != nil {
 		return nil, err
+	}
+	if size <= 0 {
+		return nil, fmt.Errorf("file size cannot be nil, this is a bug")
 	}
 
 	mt, param, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
@@ -55,10 +62,10 @@ func handleMultipart(req *http.Request, formName string) (*formData, error) {
 	}
 	filename := param["filename"]
 
-	return &formData{
-		ContentLength: int64(length),
-		ContentType:   ct,
-		Filename:      filename,
-		Body:          part,
+	return &fileInfo{
+		Size:        int64(size),
+		ContentType: ct,
+		Filename:    filename,
+		Body:        part,
 	}, nil
 }

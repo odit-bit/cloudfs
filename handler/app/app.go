@@ -2,14 +2,17 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/dustin/go-humanize"
@@ -35,8 +38,18 @@ func New(svc *service.Cloudfs, sess *scs.SessionManager, logger *slog.Logger) *A
 func (app *App) Run(ctx context.Context, addr string, middlewares ...func(http.Handler) http.Handler) error {
 	handler := app.router(middlewares...)
 	srv := http.Server{
-		Addr:    addr,
-		Handler: handler,
+		Addr:        addr,
+		Handler:     handler,
+		IdleTimeout: 10 * time.Second,
+	}
+	// setup listener
+	lAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return err
+	}
+	l, err := net.ListenTCP("tcp", lAddr)
+	if err != nil {
+		return err
 	}
 
 	sig := make(chan os.Signal, 1)
@@ -54,12 +67,16 @@ func (app *App) Run(ctx context.Context, addr string, middlewares ...func(http.H
 		srv.Close()
 	}(ctx)
 
-	app.logger.Info(fmt.Sprintf("listen on %s", addr))
-	err := srv.ListenAndServe()
-	if err != http.ErrServerClosed {
-		app.logger.Error(err.Error())
-	} else {
-		err = nil
+	app.logger.Info(fmt.Sprintf("listen on %s", l.Addr().String()))
+	if err := srv.Serve(l); err != nil {
+		if err != http.ErrServerClosed {
+			app.logger.Error(err.Error())
+		} else {
+			err = nil
+		}
+	}
+	if lErr := l.Close(); lErr != nil {
+		err = errors.Join(err, lErr)
 	}
 
 	wg.Wait()
@@ -141,6 +158,8 @@ func (v *App) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("HX-Trigger", "newObject")
+	defer r.Body.Close()
 	//get userID
 	ctx := r.Context()
 	userID, _ := getUserIDFromCtx(ctx)
@@ -152,7 +171,7 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 
 	fd, err := handleMultipart(r, "file")
 	if err != nil {
-		v.logger.Error(err.Error())
+		v.logger.Error("upload handler failed parse multipart", "err", err.Error())
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
@@ -160,7 +179,7 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 	result, err := v.svc.Upload(r.Context(), &service.UploadParam{
 		UserID:      userID,
 		Filename:    fd.Filename,
-		Size:        -1,
+		Size:        fd.Size,
 		ContentType: fd.ContentType,
 		DataReader:  fd.Body,
 	})
@@ -169,7 +188,6 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = result
-	w.Header().Set("HX-Trigger", "newObject")
 	w.WriteHeader(http.StatusOK)
 }
 
