@@ -36,7 +36,7 @@ func Index(uploadURL, listViewURL string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(uploadURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/index.templ`, Line: 134, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/index.templ`, Line: 98, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -49,13 +49,13 @@ func Index(uploadURL, listViewURL string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(listViewURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/index.templ`, Line: 157, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/index.templ`, Line: 121, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-trigger=\"load,newObject from:body\" hx-target=\"#listBody\"></div><div id=\"listBody\"></div></div></div><script>\n\t\t\thtmx.on('#uploadForm','htmx:xhr:progress', function(evt) {\n\t\t\t\thtmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)\n\t\t\t});\n\n\t\t\t// add custom Headers\n\t\t\t// add custom Headers\n\t\t\tlet fileinput = document.getElementById(\"inputFile\");\n\t\t\tfileinput.addEventListener(\"change\",()=> {\n\t\t\t\tfileSize = fileinput.files[0].size\n\t\t\t\tdocument.getElementById(\"fileSize\").textContent = fileSize\n\t\t\t\tconsole.log(fileSize)\n\t\t\t},false);\n\t\t\t\n\t\t\tdocument.body.addEventListener('htmx:configRequest', function(event) {\n\t\t\t\tevent.detail.headers['X-File-Size'] = fileSize // add size to header\n\t\t\t});\n\n\t\t\t// Handle response \n\t\t\tdocument.body.addEventListener('htmx:response', function(event) {\n\t\t\t\tconst responseText = event.detail.xhr.responseText.trim();\n\t\t\t\tconst responseModal = document.getElementById('responseModal');\n\t\t\t\tconst responseTextElement = document.getElementById('responseText');\n\n\n\t\t\t\tresponseModal.style.display = 'block';\n\n\t\t\t\t// Close modal after 3 seconds (adjust as needed)\n\t\t\t\tsetTimeout(function() {\n\t\t\t\t\tresponseModal.style.display = 'none';\n\t\t\t\t}, 3000);\n\t\t\t});\t\t\n  \t\t  </script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-trigger=\"load,newObject from:body\" hx-target=\"#listBody\"></div><div id=\"listBody\"></div></div></div><script>\n\t\t\thtmx.on('#uploadForm','htmx:xhr:progress', function(evt) {\n\t\t\t\thtmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)\n\t\t\t});\n\n\t\t\t// add custom Headers\n\t\t\tlet fileinput = document.getElementById(\"inputFile\");\n\t\t\tfileinput.addEventListener(\"change\",()=> {\n\t\t\t\tfileSize = fileinput.files[0].size\n\t\t\t\tdocument.getElementById(\"fileSize\").textContent = fileSize\n\t\t\t\tconsole.log(fileSize)\n\t\t\t},false);\n\n\t\t\tdocument.body.addEventListener('htmx:configRequest', function(event) {\n\t\t\t\tevent.detail.headers['X-File-Size'] = fileSize // add size to header\n\t\t\t});\n\n\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(event){\n\t\t\t\tconst xhr = event.detail.xhr;\n\t\t\t\t// console.log(\"error request:\", xhr.status)\n\t\t\t\t// alert(\"failed upload:\", xhr.status)\n\t\t\t\t\n\t\t\t\t// Close modal after 3 seconds (adjust as needed)\n\t\t\t\tconst modal = document.getElementById('responseModal')\n\t\t\t\tmodal.textContent = xhr.status\n\t\t\t\tmodal.style.display = 'block'\n\n\t\t\t\tsetTimeout(function() {\n\t\t\t\t\tresponseModal.style.display = 'none';\n\t\t\t\t}, 3000);\n\n\t\t\t});\n\t\n\n\t\t\t// // Handle response \n\t\t\t// document.body.addEventListener('htmx:responseError', function(event) {\n\t\t\t// \tconst responseText = event.detail.xhr.responseText.trim();\n\t\t\t// \tconst responseModal = document.getElementById('responseModal');\n\t\t\t// \tconst responseTextElement = document.getElementById('responseText');\n\n\n\t\t\t// \tresponseModal.style.display = 'block';\n\n\t\t\t// \t// Close modal after 3 seconds (adjust as needed)\n\t\t\t// \tsetTimeout(function() {\n\t\t\t// \t\tresponseModal.style.display = 'none';\n\t\t\t// \t}, 3000);\n\t\t\t// });\t\t\n\n  \t\t  </script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

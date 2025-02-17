@@ -141,20 +141,39 @@ templ Index(uploadURL, listViewURL string) {
 				event.detail.headers['X-File-Size'] = fileSize // add size to header
 			});
 
-			// Handle response 
-			document.body.addEventListener('htmx:response', function(event) {
-				const responseText = event.detail.xhr.responseText.trim();
-				const responseModal = document.getElementById('responseModal');
-				const responseTextElement = document.getElementById('responseText');
 
-
-				responseModal.style.display = 'block';
-
+			document.body.addEventListener('htmx:responseError', function(event){
+				const xhr = event.detail.xhr;
+				// console.log("error request:", xhr.status)
+				// alert("failed upload:", xhr.status)
+				
 				// Close modal after 3 seconds (adjust as needed)
+				const modal = document.getElementById('responseModal')
+				modal.textContent = xhr.status
+				modal.style.display = 'block'
+
 				setTimeout(function() {
 					responseModal.style.display = 'none';
 				}, 3000);
-			});		
+
+			});
+	
+
+			// // Handle response 
+			// document.body.addEventListener('htmx:responseError', function(event) {
+			// 	const responseText = event.detail.xhr.responseText.trim();
+			// 	const responseModal = document.getElementById('responseModal');
+			// 	const responseTextElement = document.getElementById('responseText');
+
+
+			// 	responseModal.style.display = 'block';
+
+			// 	// Close modal after 3 seconds (adjust as needed)
+			// 	setTimeout(function() {
+			// 		responseModal.style.display = 'none';
+			// 	}, 3000);
+			// });		
+
   		  </script>
 		</body>
 	</html>

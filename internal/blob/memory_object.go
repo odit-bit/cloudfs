@@ -1,4 +1,4 @@
-package repo
+package blob
 
 import (
 	"context"
@@ -7,34 +7,35 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/spf13/afero"
 )
+
+var _ ObjectStorer = (*aferoBlob)(nil)
 
 type aferoBlob struct {
 	Fs afero.Fs
 }
 
-func NewInMemBlob() (aferoBlob, error) {
-	return aferoBlob{
+func newObjectMemory() (*aferoBlob, error) {
+	return &aferoBlob{
 		Fs: afero.NewMemMapFs(),
 	}, nil
 
 }
 
-func NewAferoBlob(root string) (*aferoBlob, error) {
+func newAferoBlob(root string) (*aferoBlob, error) {
 	return &aferoBlob{
-		Fs: afero.NewOsFs(),
+		Fs: afero.NewBasePathFs(afero.NewOsFs(), root),
 	}, nil
 }
 
 // ObjectIterator implements service.BlobStore.
-func (store *aferoBlob) ObjectIterator(ctx context.Context, userID string, limit int, lastFilename string) blob.Iterator {
+func (store *aferoBlob) ObjectIterator(ctx context.Context, userID string, limit int, lastFilename string) Iterator {
 	dirPath := userID
-	c := make(chan blob.ObjectInfo)
+	c := make(chan ObjectInfo)
 	if ok, _ := afero.DirExists(store.Fs, dirPath); !ok {
 		close(c)
-		return blob.Iterator{
+		return Iterator{
 			C: c,
 		}
 	}
@@ -42,7 +43,7 @@ func (store *aferoBlob) ObjectIterator(ctx context.Context, userID string, limit
 	entry, err := afero.ReadDir(store.Fs, dirPath)
 	if err != nil {
 		close(c)
-		return blob.Iterator{
+		return Iterator{
 			UserID: "",
 			C:      c,
 		}
@@ -66,7 +67,7 @@ func (store *aferoBlob) ObjectIterator(ctx context.Context, userID string, limit
 				break
 			}
 
-			info := blob.ObjectInfo{
+			info := ObjectInfo{
 				UserID:       userID,
 				Filename:     info.Name(),
 				ContentType:  "",
@@ -87,7 +88,7 @@ func (store *aferoBlob) ObjectIterator(ctx context.Context, userID string, limit
 		close(c)
 	}()
 
-	return blob.Iterator{
+	return Iterator{
 		UserID: "",
 		C:      c,
 	}
@@ -98,7 +99,7 @@ func (store *aferoBlob) Delete(ctx context.Context, userID, filename string) err
 	return store.Fs.Remove(fileKey)
 }
 
-func (store *aferoBlob) Get(ctx context.Context, userID string, filename string) (*blob.ObjectInfo, error) {
+func (store *aferoBlob) Get(ctx context.Context, userID string, filename string) (*ObjectInfo, error) {
 	fileKey := filepath.Join(userID, filename)
 	ok, err := afero.Exists(store.Fs, fileKey)
 	if err != nil {
@@ -117,7 +118,7 @@ func (store *aferoBlob) Get(ctx context.Context, userID string, filename string)
 		return nil, err
 	}
 
-	return &blob.ObjectInfo{
+	return &ObjectInfo{
 		UserID:       userID,
 		Filename:     filename,
 		ContentType:  "",
@@ -128,7 +129,7 @@ func (store *aferoBlob) Get(ctx context.Context, userID string, filename string)
 	}, nil
 }
 
-func (store *aferoBlob) Put(ctx context.Context, userID string, filename string, reader io.Reader, size int64, contentType string) (*blob.ObjectInfo, error) {
+func (store *aferoBlob) Put(ctx context.Context, userID string, filename string, reader io.Reader, size int64, contentType string) (*ObjectInfo, error) {
 	fileKey := filepath.Join(userID, filename)
 	//optimis path
 	ok, err := afero.Exists(store.Fs, userID)
@@ -152,7 +153,7 @@ func (store *aferoBlob) Put(ctx context.Context, userID string, filename string,
 
 	stat, _ := f.Stat()
 
-	return &blob.ObjectInfo{
+	return &ObjectInfo{
 		UserID:       userID,
 		Filename:     filename,
 		ContentType:  contentType,

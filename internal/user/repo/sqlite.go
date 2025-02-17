@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/glebarez/go-sqlite"
 	"github.com/odit-bit/cloudfs/internal/user"
+	_ "modernc.org/sqlite"
 )
 
 type DB struct {
@@ -53,7 +53,7 @@ func DefaultDB(mode, path string) (*sql.DB, error) {
 		dsn = fmt.Sprintf("file:%s?cache=shared&mode=%v", path, mode)
 	}
 
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func DefaultDB(mode, path string) (*sql.DB, error) {
 	return db, nil
 }
 
-func (db *DB) Find(ctx context.Context, name string) (*user.Account, error) {
+func (db *DB) FindUsername(ctx context.Context, name string) (*user.Account, error) {
 	var account user.Account
 
 	row := db.sqlite.QueryRow("SELECT * FROM Account WHERE Name = ? LIMIT 1", name)

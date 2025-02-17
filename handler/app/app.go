@@ -17,20 +17,24 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/dustin/go-humanize"
 	"github.com/odit-bit/cloudfs/component"
-	"github.com/odit-bit/cloudfs/service"
+	"github.com/odit-bit/cloudfs/internal/blob"
+	"github.com/odit-bit/cloudfs/internal/user"
 )
 
 type App struct {
-	logger  *slog.Logger
-	svc     *service.Cloudfs
-	session *scs.SessionManager
+	logger *slog.Logger
+	// svc      *service.Cloudfs
+	accounts *user.Users
+	objects  *blob.Blobs
+	session  *scs.SessionManager
 }
 
-func New(svc *service.Cloudfs, sess *scs.SessionManager, logger *slog.Logger) *App {
+func New(users *user.Users, obj *blob.Blobs, sess *scs.SessionManager, logger *slog.Logger) *App {
 	ah := App{
-		logger:  logger,
-		svc:     svc,
-		session: sess,
+		logger:   logger,
+		accounts: users,
+		objects:  obj,
+		session:  sess,
 	}
 	return &ah
 }
@@ -89,17 +93,14 @@ func (v *App) LoginService(redirecURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.PostFormValue("username")
 		pass := r.PostFormValue("password")
-		acc, err := v.svc.Auth(r.Context(), &service.AuthParam{
-			Username: user,
-			Password: pass,
-		})
+		acc, err := v.accounts.BasicAuth(r.Context(), user, pass)
 		if err != nil {
 			v.logger.Error(fmt.Sprintf("authHandler: %v", err))
 			http.Error(w, "username not found", http.StatusNotFound)
 			return
 		}
 
-		v.session.Put(r.Context(), "userID", acc.ID)
+		v.session.Put(r.Context(), "userID", acc.ID.String())
 		http.Redirect(w, r, redirecURL, http.StatusSeeOther)
 	}
 }
@@ -131,7 +132,7 @@ func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filename := r.URL.Query().Get("filename")
-	obj, err := v.svc.Object(ctx, UserID, filename)
+	obj, err := v.objects.Object(ctx, UserID, filename)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
@@ -139,56 +140,15 @@ func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 	v.writeObject(w, r, obj)
 }
 
-func (v *App) Delete(w http.ResponseWriter, r *http.Request) {
+func (v *App) DownloadShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	UserID, ok := getUserIDFromCtx(ctx)
-	if !ok {
-		v.logger.Error("apiHandler: wrong userID context")
-		http.Error(w, "not authorized", http.StatusUnauthorized)
-		return
-	}
-	filename := r.URL.Query().Get("filename")
-	err := v.svc.Delete(ctx, UserID, filename)
+	token := r.URL.Query().Get("token")
+	obj, err := v.objects.DownloadToken(ctx, token)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
-	w.Header().Set("HX-Trigger", "deleteObject")
-	w.WriteHeader(http.StatusOK)
-}
-
-func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("HX-Trigger", "newObject")
-	defer r.Body.Close()
-	//get userID
-	ctx := r.Context()
-	userID, _ := getUserIDFromCtx(ctx)
-	if userID == "" {
-		v.logger.Error("apiHandler: userID is empty")
-		http.Error(w, "not authorized", http.StatusUnauthorized)
-		return
-	}
-
-	fd, err := handleMultipart(r, "file")
-	if err != nil {
-		v.logger.Error("upload handler failed parse multipart", "err", err.Error())
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	defer fd.Close()
-	result, err := v.svc.Upload(r.Context(), &service.UploadParam{
-		UserID:      userID,
-		Filename:    fd.Filename,
-		Size:        fd.Size,
-		ContentType: fd.ContentType,
-		DataReader:  fd.Body,
-	})
-	if err != nil {
-		v.serviceErr(w, r, err)
-		return
-	}
-	_ = result
-	w.WriteHeader(http.StatusOK)
+	v.writeObject(w, r, obj)
 }
 
 func (v *App) List(w http.ResponseWriter, r *http.Request) {
@@ -202,7 +162,7 @@ func (v *App) List(w http.ResponseWriter, r *http.Request) {
 
 	lastFilename := r.URL.Query().Get("last")
 
-	objects, err := v.svc.ListObject(r.Context(), userID, 100, lastFilename)
+	objects, err := v.objects.ListObject(r.Context(), userID, 100, lastFilename)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
@@ -237,11 +197,8 @@ func (v *App) RegisterService(redirectURL string) http.HandlerFunc {
 		}
 
 		//insert account
-		if err := v.svc.Register(r.Context(), &service.RegisterParam{
-			Username: username,
-			Password: pass,
-		}); err != nil {
-			if err == service.ErrAccountExist {
+		if err := v.accounts.Register(r.Context(), username, pass); err != nil {
+			if err == user.ErrAccountExist {
 				http.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
@@ -265,7 +222,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			return
 		}
 		filename := r.URL.Query().Get("filename")
-		tkn, err := v.svc.SharingFile(r.Context(), userID, filename)
+		tkn, err := v.objects.CreateShareToken(r.Context(), userID, filename, 0)
 		if err != nil {
 			v.serviceErr(w, r, err)
 			return
@@ -286,14 +243,54 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 	}
 }
 
-func (v *App) DownloadShare(w http.ResponseWriter, r *http.Request) {
+func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("HX-Trigger", "newObject")
+	defer r.Body.Close()
+	//get userID
 	ctx := r.Context()
+	userID, _ := getUserIDFromCtx(ctx)
+	if userID == "" {
+		v.logger.Error("apiHandler: userID is empty")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
 
-	token := r.URL.Query().Get("token")
-	obj, err := v.svc.DownloadSharedFile(ctx, token)
+	fd, err := handleMultipart(r, "file")
+	if err != nil {
+		v.logger.Error("upload handler failed parse multipart", "err", err.Error())
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	defer fd.Close()
+	result, err := v.objects.Upload(r.Context(), blob.UploadParam{
+		Bucket:      userID,
+		Filename:    fd.Filename,
+		Size:        fd.Size,
+		ContentType: fd.ContentType,
+		Body:        fd.Body,
+	})
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
-	v.writeObject(w, r, obj)
+	_ = result
+	w.WriteHeader(http.StatusOK)
+}
+
+func (v *App) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	UserID, ok := getUserIDFromCtx(ctx)
+	if !ok {
+		v.logger.Error("apiHandler: wrong userID context")
+		http.Error(w, "not authorized", http.StatusUnauthorized)
+		return
+	}
+	filename := r.URL.Query().Get("filename")
+	err := v.objects.Delete(ctx, UserID, filename)
+	if err != nil {
+		v.serviceErr(w, r, err)
+		return
+	}
+	w.Header().Set("HX-Trigger", "deleteObject")
+	w.WriteHeader(http.StatusOK)
 }

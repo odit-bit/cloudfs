@@ -26,13 +26,20 @@ func Test_pguser(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	userDB, _ := NewUserPG(ctx, dbUrl)
+	db, err := sql.Open("pgx", dbUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	defer dropTable(db, default_table_name)
+
+	userDB, _ := NewUserPG(ctx, db)
 	acc1 := user.CreateAccount("user1", "12345")
 	if err := userDB.Insert(ctx, acc1); err != nil {
 		t.Fatal(err)
 	}
 
-	acc2, err := userDB.Find(ctx, "user1")
+	acc2, err := userDB.FindUsername(ctx, "user1")
 	if err != nil {
 		t.Fatal(err)
 	}

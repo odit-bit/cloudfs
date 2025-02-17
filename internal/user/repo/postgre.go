@@ -11,15 +11,17 @@ import (
 
 const default_table_name = "accounts"
 
+var _ user.AccountStorer = (*userPG)(nil)
+
 type userPG struct {
 	pg *sql.DB
 }
 
-func NewUserPG(ctx context.Context, uri string) (*userPG, error) {
-	db, err := sql.Open("pgx", uri)
-	if err != nil {
-		return nil, err
-	}
+func NewUserPG(ctx context.Context, db *sql.DB) (*userPG, error) {
+	// db, err := sql.Open("pgx", uri)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	if err := db.PingContext(ctx); err != nil {
 		return nil, err
@@ -66,7 +68,8 @@ func (db *userPG) Close() error {
 	return db.pg.Close()
 }
 
-func (db *userPG) Find(ctx context.Context, name string) (*user.Account, error) {
+// FindUsername implements user.AccountStorer.
+func (db *userPG) FindUsername(ctx context.Context, name string) (*user.Account, error) {
 	var account user.Account
 
 	row := db.pg.QueryRow("SELECT * FROM accounts WHERE Name = $1 LIMIT 1", name)

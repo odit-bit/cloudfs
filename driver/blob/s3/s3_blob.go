@@ -7,10 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/odit-bit/cloudfs/internal/blob"
-	"github.com/odit-bit/cloudfs/service"
 )
 
-var _ service.BlobStore = (*S3blobRepo)(nil)
+// var _ service.BlobStore = (*S3blobRepo)(nil)
 
 type S3blobRepo struct {
 	cli *s3.Client

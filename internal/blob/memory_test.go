@@ -1,4 +1,4 @@
-package repo_test
+package blob
 
 import (
 	"bytes"
@@ -6,14 +6,12 @@ import (
 	"io"
 	"testing"
 
-	"github.com/odit-bit/cloudfs/internal/blob"
-	"github.com/odit-bit/cloudfs/internal/blob/repo"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_afero(t *testing.T) {
 	ctx := context.Background()
-	v, _ := repo.NewInMemBlob() //repo.NewAferoBlob("")
+	v, _ := newObjectMemory() //repo.NewAferoBlob("")
 	_ = v
 	type obj struct {
 		bucket   string
@@ -43,7 +41,7 @@ func Test_afero(t *testing.T) {
 
 	// list
 	iter := v.ObjectIterator(ctx, input.bucket, 1000, "")
-	list := []blob.ObjectInfo{}
+	list := []ObjectInfo{}
 	for obj := range iter.C {
 		list = append(list, obj)
 	}
@@ -59,7 +57,7 @@ func Test_afero(t *testing.T) {
 }
 
 func Test_local_iterator(t *testing.T) {
-	v, err := repo.NewInMemBlob()
+	v, err := newObjectMemory()
 	if err != nil {
 		t.Fatal(err)
 	}

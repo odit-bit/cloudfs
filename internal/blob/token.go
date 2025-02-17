@@ -1,4 +1,4 @@
-package token
+package blob
 
 import (
 	"crypto/rand"
@@ -6,16 +6,19 @@ import (
 	"time"
 )
 
+
+
+
 // represent shareFileToken
 // every shared file has this unique token
-type ShareToken struct {
+type Token struct {
 	key      string
 	userID   string
 	filename string
 	expire   time.Time
 }
 
-func NewShareToken(userID, filename string, expire time.Duration) *ShareToken {
+func NewShareToken(userID, filename string, expire time.Duration) *Token {
 	//make token from this enc
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
@@ -24,7 +27,7 @@ func NewShareToken(userID, filename string, expire time.Duration) *ShareToken {
 	if expire <= 1*time.Hour {
 		expire = 1 * time.Hour
 	}
-	t := ShareToken{
+	t := Token{
 		key:      key,
 		userID:   userID,
 		filename: filename,
@@ -33,8 +36,8 @@ func NewShareToken(userID, filename string, expire time.Duration) *ShareToken {
 	return &t
 }
 
-func FromStore(key, userID, filename string, expire time.Time) *ShareToken {
-	return &ShareToken{
+func FromStore(key, userID, filename string, expire time.Time) *Token {
+	return &Token{
 		key:      key,
 		userID:   userID,
 		filename: filename,
@@ -42,30 +45,30 @@ func FromStore(key, userID, filename string, expire time.Time) *ShareToken {
 	}
 }
 
-func (t *ShareToken) IsNotExpire() bool {
+func (t *Token) IsNotExpire() bool {
 	return time.Now().Before(t.expire)
 }
 
-func (t *ShareToken) Key() string {
+func (t *Token) Key() string {
 	return t.key
 }
 
-func (t *ShareToken) UserID() string {
+func (t *Token) UserID() string {
 	return t.userID
 }
 
-func (t *ShareToken) Filename() string {
+func (t *Token) Filename() string {
 	return t.filename
 }
 
-func (t *ShareToken) ValidUntil() time.Time {
+func (t *Token) ValidUntil() time.Time {
 	return t.expire
 }
 
-func (t *ShareToken) IsFilenameEqualTo(filename string) bool {
+func (t *Token) IsFilenameEqualTo(filename string) bool {
 	return t.filename == filename
 }
 
-func (t *ShareToken) IsUserEqualTo(userID string) bool {
+func (t *Token) IsUserEqualTo(userID string) bool {
 	return t.userID == userID
 }

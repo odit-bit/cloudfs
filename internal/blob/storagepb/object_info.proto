@@ -1,0 +1,12 @@
+syntax = "proto3";
+package storagepb;
+
+option go_package = "./internal/blob/storagepb";
+
+
+message ObjectInfo {
+    string filename = 1;
+    string bucket = 2;
+    int64 size = 3;
+    string contentType = 4;
+}

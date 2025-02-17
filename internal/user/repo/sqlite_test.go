@@ -8,7 +8,6 @@ import (
 )
 
 func TestInsertAndFindAccount(t *testing.T) {
-
 	db, err := DefaultDB(":memory:", "")
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +29,7 @@ func TestInsertAndFindAccount(t *testing.T) {
 	}
 
 	// Test Find Account
-	foundAccount, err := adb.Find(context.Background(), "TestUser")
+	foundAccount, err := adb.FindUsername(context.Background(), "TestUser")
 	if err != nil {
 		t.Fatal(err)
 	}
