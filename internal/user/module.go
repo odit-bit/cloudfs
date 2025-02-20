@@ -13,6 +13,7 @@ type AccountStorer interface {
 
 type TokenStorer interface {
 	GetToken(ctx context.Context, tkn string) (*Token, error)
+	GetTokenUserID(ctx context.Context, id string) (*Token, bool)
 	PutToken(ctx context.Context, token *Token) error
 	Delete(ctx context.Context, tkn string) error
 }
@@ -22,17 +23,33 @@ type Users struct {
 	tokens   TokenStorer
 }
 
+func NewWithMemory() *Users {
+	db, _ := newInMemory()
+	return &Users{
+		accounts: db,
+		tokens:   db,
+	}
+}
+
 func NewStore(ctx context.Context, accounts AccountStorer, tokens TokenStorer) (*Users, error) {
 	st := Users{accounts: accounts, tokens: tokens}
 	return &st, nil
 }
 
-func (s *Users) Register(ctx context.Context, username, password string) error {
+func (s *Users) Register(ctx context.Context, username, password string) (*Account, error) {
 	acc := CreateAccount(username, password)
-	return s.accounts.Insert(ctx, acc)
+	if err := s.accounts.Insert(ctx, acc); err != nil {
+		return nil, err
+	}
+	return acc, nil
 }
 
-func (s *Users) BasicAuth(ctx context.Context, username, password string) (*Account, error) {
+type BasicAuthResponse struct {
+	ID string
+	*Token
+}
+
+func (s *Users) BasicAuth(ctx context.Context, username, password string) (*BasicAuthResponse, error) {
 	acc, err := s.accounts.FindUsername(ctx, username)
 	if err != nil {
 		return nil, err
@@ -42,7 +59,16 @@ func (s *Users) BasicAuth(ctx context.Context, username, password string) (*Acco
 		return nil, err
 	}
 
-	return acc, nil
+	tkn, ok := s.tokens.GetTokenUserID(ctx, acc.ID.String())
+	if !ok {
+		tkn = NewToken(acc.ID.String(), Default_Token_Expire)
+	}
+
+	if err := s.tokens.PutToken(ctx, tkn); err != nil {
+		return nil, err
+	}
+
+	return &BasicAuthResponse{ID: acc.ID.String(), Token: tkn}, nil
 }
 
 func (s *Users) TokenAuth(ctx context.Context, tkn string) (*Token, error) {

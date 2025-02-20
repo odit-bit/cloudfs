@@ -13,6 +13,8 @@ const default_table_name = "accounts"
 
 var _ user.AccountStorer = (*userPG)(nil)
 
+// var _ user.TokenStorer = (*userPG)(nil)
+
 type userPG struct {
 	pg *sql.DB
 }

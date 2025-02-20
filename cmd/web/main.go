@@ -9,10 +9,7 @@ import (
 	"os"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/odit-bit/cloudfs/handler/app"
-	"github.com/odit-bit/cloudfs/internal/blob"
-	"github.com/odit-bit/cloudfs/internal/user"
-	repoUser "github.com/odit-bit/cloudfs/internal/user/repo"
+	"github.com/odit-bit/cloudfs/web"
 	"github.com/odit-bit/cloudfs/lib/xhttp"
 )
 
@@ -33,19 +30,31 @@ func main() {
 	var isProd bool
 	var port int
 	var host string
+	var backendAddr string
 	flag.BoolVar(&isProd, "production", false, "if true will use production env, default false")
 	flag.StringVar(&host, "host", "localhost", "host name")
 	flag.IntVar(&port, "port", 8181, "port")
+	flag.StringVar(&backendAddr, "backend-addr", "", "backend address")
+
 	flag.Parse()
+
+	if backendAddr == "" {
+		log.Println("missing backend address")
+		os.Exit(1)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	server := new(app.App)
+	server := new(web.App)
+	var err error
 	switch isProd {
 	case false:
-		server = InitDevService(ctx)
-
+		server, err = InitDevService(ctx, backendAddr)
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 	default:
 		panic("production code is not implemented")
 		// sess.Store = sessionredis.NewSessionRedis(os.Getenv(SESSION_REDIS_URI))
@@ -64,21 +73,17 @@ func main() {
 	os.Exit(0)
 }
 
-func InitDevService(ctx context.Context) *app.App {
+func InitDevService(ctx context.Context, backendAddr string) (*web.App, error) {
 	// setup session token
 	sess := scs.New() //session management
 
-	// setup account service
-	udb, _ := repoUser.NewInMemory()
-	users, _ := user.NewStore(ctx, udb, udb)
-
-	// setup blob service
-	blobs, _ := blob.NewWithMemory()
-
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	server := app.New(users, blobs, sess, logger)
-	return server
+	server, err := web.New(backendAddr, sess, logger)
+	if err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 // func InitProductionService() service.Cloudfs {
@@ -86,7 +91,7 @@ func InitDevService(ctx context.Context) *app.App {
 // 	endpoint := os.Getenv(BLOB_MINIO_ENDPOINT)
 // 	key := os.Getenv(BLOB_MINIO_ACCESS_KEY)
 // 	secret := os.Getenv(BLOB_MINIO_SECRET_ACCESS_KEY)
-// 	blobDriver, err := repoBlob.NewMinioBlob(endpoint, key, secret)
+// 	blobDriver, err := repostorage.NewMinioBlob(endpoint, key, secret)
 // 	if err != nil {
 // 		log.Fatal(err)
 // 	}

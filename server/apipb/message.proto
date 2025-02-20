@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package apipb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./apipb";
+
+message ListObjectRequest {
+    string userToken = 2;
+    int32 limit = 3;
+    string lastFilename = 4;
+}
+
+message ListObjectResponse {
+    string userID = 1;
+    string filename = 2;
+    int64 size = 3;
+    string sum = 4;
+    string contentType = 5;
+    google.protobuf.Timestamp lastModified = 6;
+}
+
+///
+
+
+message DeleteRequest {
+    string userToken = 1;
+    string filename = 2;
+}
+
+message DeleteResponse {
+    google.protobuf.Timestamp DeleteAt = 5;
+}
+
+
+///
+
+message UploadRequest {
+    string token = 1; 
+    string filename = 2;
+    string contentType = 3;
+    int64 totalSize = 4;
+    bytes chunk = 5;
+}
+
+
+message UploadResponse {
+      string sum = 2;
+}
+
+///
+
+message ShareObjectRequest {
+    string token = 1;
+    string filename = 2;
+}
+
+message ShareObjectResponse {
+    string shareToken = 1;
+    google.protobuf.Timestamp validUntil = 2;
+}
+
+////
+
+message DownloadRequest {
+    string token = 1;
+    string filename = 2;
+}
+
+message DownloadSharedRequest {
+    string sharedToken = 1;
+}
+
+message DownloadResponse {
+    int64 totalSize = 1;
+    bytes chunk = 2; 
+    string contentType =3;
+}
+
+
+
+///
+
+message RegisterRequest{
+    string username = 1;
+    string password = 2;
+    string email = 3;
+}
+message RegisterResponse{
+    string userID = 1;
+}
+
+////
+
+message BasicAuthRequest{
+    string username = 1;
+    string password = 2;
+}
+message BasicAuthResponse{
+    string token = 1;
+}
+
+///
+
+message TokenAuthRequest{
+    string token = 1;
+}
+message TokenAuthResponse{
+    string userID = 1;
+    google.protobuf.Timestamp validUntil = 2; 
+}
+
+////

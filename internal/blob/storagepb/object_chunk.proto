@@ -1,9 +1,0 @@
-syntax = "proto3";
-package storagepb;
-
-option go_package = "./internal/blob/storagepb";
-
-
-message ObjectChunk {
-    bytes chunk = 1;
-}
