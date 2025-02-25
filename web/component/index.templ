@@ -105,7 +105,7 @@ templ Index(uploadURL, listViewURL string) {
 							name="file" 
 						/>
 						<label for="fileSize">Total size:</label>
-						<output id="fileSize">0</output>
+						// <output id="fileSize">0</output>
 						<button type="submit">upload</button>
 						// <button onclick="htmx.trigger('#uploadForm', 'htmx:abort')">Cancel Request</button>
 						<progress id="progress" class="htmx-indicator" value="0" max="100"></progress>
@@ -130,15 +130,22 @@ templ Index(uploadURL, listViewURL string) {
 			});
 
 			// add custom Headers
+			let fileName = "";
+			let fileSize = 0;
+			let fileType = "";
 			let fileinput = document.getElementById("inputFile");
 			fileinput.addEventListener("change",()=> {
 				fileSize = fileinput.files[0].size
-				document.getElementById("fileSize").textContent = fileSize
-				console.log(fileSize)
+				fileName = fileinput.files[0].name
+				fileType = fileinput.files[0].type
+				// document.getElementById("fileSize").textContent = fileSize
+				console.log(fileSize, fileName , fileType)
 			},false);
 
 			document.body.addEventListener('htmx:configRequest', function(event) {
 				event.detail.headers['X-File-Size'] = fileSize // add size to header
+				event.detail.headers['X-File-Name'] = fileName // add size to header
+				event.detail.headers['X-File-ContentType'] = fileType // add size to header
 			});
 
 

@@ -1,18 +1,29 @@
-package cli
+package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/odit-bit/cloudfs/rpc"
+	"google.golang.org/grpc"
 )
+
+const (
+	_default_endpoint = "localhost:6969"
+)
+
+var defaultConfig = Config{
+	Endpoint: _default_endpoint,
+}
 
 type Config struct {
 	AccessKey string
 	SecretKey string
+	Endpoint  string
+	Token     string
 }
 
 var (
@@ -60,10 +71,34 @@ func createConfigFile(toDir string) error {
 	if f, err := os.Create(filepath.Join(confDir, _file)); err != nil {
 		return fmt.Errorf("failed create config file: %v", err)
 	} else {
-		c := Config{}
+		c := Config{
+			Endpoint: _default_endpoint,
+		}
 		return json.NewEncoder(f).Encode(c)
 	}
 
+}
+
+func saveConfig(toDir string, conf *Config) error {
+	if toDir == "" {
+		dir, err := getDefaultConfigPath()
+		if err != nil {
+			return err
+		}
+		toDir = dir
+	}
+
+	f, err := os.Create(toDir)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(conf); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func loadConfig(toDir string) (*Config, error) {
@@ -99,24 +134,41 @@ func loadConfig(toDir string) (*Config, error) {
 
 }
 
+type cmd struct {
+	cli *rpc.CloudfsClient
+}
+
 //----------------
 
-func login(ctx context.Context, uri string, username, password string) (string, error) {
-	var body bytes.Buffer
+func New(endpoint string) (*cmd, error) {
+
+	conn, err := grpc.NewClient(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	cli := rpc.NewCloudfsClient(conn)
+
+	return &cmd{
+		cli: cli,
+	}, err
+}
+
+func (c *cmd) Signup(ctx context.Context, username, password string) error {
+	_, err := c.cli.Register(ctx, rpc.RegisterParam{Username: username, Password: password})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *cmd) Login(ctx context.Context, uri string, username, password string) (string, error) {
 	var token string
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, &body)
+
+	res, err := c.cli.BasicAuth(ctx, username, password)
 	if err != nil {
 		return token, err
 	}
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return token, err
-	}
-	switch res.StatusCode {
-	case 200, 202:
-		
-
-	}
-	return "", nil
+	token = res.Token
+	return token, nil
 }

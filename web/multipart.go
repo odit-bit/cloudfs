@@ -25,13 +25,15 @@ func handleMultipart(req *http.Request, formName string) (*fileInfo, error) {
 	if fileSize == "" {
 		return nil, fmt.Errorf("invalid 'X-File-Size' value %v", fileSize)
 	}
-	size, err := strconv.ParseInt(req.Header.Get("X-File-Size"), 10, 0)
+	size, err := strconv.Atoi(req.Header.Get("X-File-Size"))
 	if err != nil {
 		return nil, err
 	}
 	if size <= 0 {
 		return nil, fmt.Errorf("file size cannot be nil, this is a bug")
 	}
+	// filename := req.Header.Get("X-File-Name")
+	// ct := req.Header.Get("X-File-Type")
 
 	mt, param, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
 	if err != nil {

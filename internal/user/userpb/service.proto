@@ -1,0 +1,15 @@
+// protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/user/userpb/*.proto
+
+syntax = "proto3";
+package userpb; 
+
+import "internal/user/userpb/message.proto";
+
+option go_package = "./userpb";
+
+
+service AuthService {
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc BasicAuth(BasicAuthRequest) returns (BasicAuthResponse);
+    rpc TokenAuth(TokenAuthRequest) returns (TokenAuthResponse);
+}

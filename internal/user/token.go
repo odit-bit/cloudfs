@@ -11,9 +11,9 @@ var (
 )
 
 type Token struct {
-	key    string
-	userID string
-	expire time.Time
+	Key    string
+	UserID string
+	Expire time.Time
 }
 
 func NewToken(userID string, expire time.Duration) *Token {
@@ -26,39 +26,39 @@ func NewToken(userID string, expire time.Duration) *Token {
 		expire = Default_Token_Expire
 	}
 	t := Token{
-		key:    key,
-		userID: userID,
-		expire: time.Now().UTC().Add(expire),
+		Key:    key,
+		UserID: userID,
+		Expire: time.Now().UTC().Add(expire).Round(1 * time.Microsecond),
 	}
 	return &t
 }
 
-func FromStore(key, userID, filename string, expire time.Time) *Token {
-	return &Token{
-		key:    key,
-		userID: userID,
-		expire: expire,
-	}
-}
+// func TokenFromStore(key, userID string, expire time.Time) *Token {
+// 	return &Token{
+// 		Key:    key,
+// 		UserID: userID,
+// 		Expire: expire,
+// 	}
+// }
 
 func (t *Token) IsNotExpire() bool {
-	return time.Now().Before(t.expire)
+	return time.Now().Before(t.Expire)
 }
 
-func (t *Token) Key() string {
-	return t.key
-}
+// func (t *Token) Key() string {
+// 	return t.key
+// }
 
-func (t *Token) UserID() string {
-	return t.userID
-}
+// func (t *Token) UserID() string {
+// 	return t.userID
+// }
 
 func (t *Token) ValidUntil() time.Time {
-	return t.expire
+	return t.Expire
 }
 
 func (t *Token) RefreshExpire(dur time.Duration) error {
-	t.expire = time.Now().UTC().Add(Default_Token_Expire)
+	t.Expire = time.Now().UTC().Add(Default_Token_Expire)
 	return nil
 }
 

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package userpb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./userpb";
+
+
+
+message RegisterRequest{
+    string username = 1;
+    string password = 2;
+    string email = 3;
+}
+message RegisterResponse{
+    string userID = 1;
+}
+
+////
+
+message BasicAuthRequest{
+    string username = 1;
+    string password = 2;
+}
+message BasicAuthResponse{
+    string token = 1;
+    string userID = 2;
+}
+
+///
+
+message TokenAuthRequest{
+    string token = 1;
+}
+message TokenAuthResponse{
+    string userID = 1;
+    google.protobuf.Timestamp validUntil = 2; 
+}
+
+////

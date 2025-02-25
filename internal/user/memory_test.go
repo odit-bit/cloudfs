@@ -38,22 +38,22 @@ func Test_token(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tkn2, err := inMem.GetToken(context.TODO(), tkn.Key())
+	tkn2, err := inMem.GetToken(context.TODO(), tkn.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, tkn, tkn2)
 
-	tkn3, ok := inMem.GetTokenUserID(context.TODO(), tkn.UserID())
+	tkn3, ok := inMem.GetTokenUserID(context.TODO(), tkn.UserID)
 	if !ok {
 		t.Fatal("token should exist finded by user id")
 	}
 	assert.Equal(t, tkn2, tkn3)
 
-	inMem.Delete(context.TODO(), tkn.Key())
+	inMem.Delete(context.TODO(), tkn.Key)
 
 	// expect err not nil
-	if _, err := inMem.GetToken(context.TODO(), tkn.Key()); err == nil {
+	if _, err := inMem.GetToken(context.TODO(), tkn.Key); err == nil {
 		t.Fatal(err)
 	} else {
 		assert.EqualError(t, err, ErrTokenNotExist.Error())

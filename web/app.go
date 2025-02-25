@@ -5,50 +5,52 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/dustin/go-humanize"
-	"github.com/odit-bit/cloudfs/server/apipb"
-	"github.com/odit-bit/cloudfs/web/component"
-	"github.com/odit-bit/cloudfs/internal/storage"
+	"github.com/odit-bit/cloudfs/internal/blob"
+	"github.com/odit-bit/cloudfs/internal/blob/blobpb"
 	"github.com/odit-bit/cloudfs/internal/user"
+	"github.com/odit-bit/cloudfs/internal/user/userpb"
+	"github.com/odit-bit/cloudfs/web/component"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 type App struct {
-	logger *slog.Logger
+	logger *logrus.Logger
 	// svc      *service.Cloudfs
 	// accounts *user.Users
 	// objects *storage.Blobs
 	session *scs.SessionManager
 
-	backend apipb.StorageServiceClient
+	backend *Backend
 }
 
-func New(backendAddr string, sess *scs.SessionManager, logger *slog.Logger) (*App, error) {
+func New(backendAddr string, sess *scs.SessionManager, logger *logrus.Logger) (*App, error) {
 	creds := insecure.NewCredentials()
 	conn, err := grpc.NewClient(backendAddr, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return nil, err
 	}
 
-	backend := apipb.NewStorageServiceClient(conn)
+	backend := Backend{
+		auth:    userpb.NewAuthServiceClient(conn),
+		objects: blobpb.NewStorageServiceClient(conn),
+	}
 	ah := App{
 		logger:  logger,
 		session: sess,
-		backend: backend,
+		backend: &backend,
 	}
 
 	return &ah, nil
@@ -83,6 +85,7 @@ func (app *App) Run(ctx context.Context, addr string, middlewares ...func(http.H
 		}
 		close(sig)
 		app.logger.Info("shutdown server", "type", v)
+		srv.SetKeepAlivesEnabled(false)
 		srv.Close()
 	}(ctx)
 
@@ -108,31 +111,33 @@ func (v *App) LoginService(redirecURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.PostFormValue("username")
 		pass := r.PostFormValue("password")
-		acc, err := v.backend.BasicAuth(r.Context(), &apipb.BasicAuthRequest{Username: user, Password: pass})
+		res, err := v.backend.BasicAuth(r.Context(), user, pass)
 		if err != nil {
 			v.logger.Error(fmt.Sprintf("authHandler: %v", err))
 			http.Error(w, "username not found", http.StatusNotFound)
 			return
 		}
 
-		v.session.Put(r.Context(), sessUserToken, acc.Token)
-		v.logger.Info(fmt.Sprintf("loginService put token: %v", acc.Token))
+		acc := &account{UserID: res.UserID, Token: res.Token, SharedObjects: map[Filename]ShareToken{}}
+		v.session.Put(r.Context(), Session_Account, acc)
+		v.logger.Info(fmt.Sprintf("loginService put token: %v", acc))
 		http.Redirect(w, r, redirecURL, http.StatusSeeOther)
 	}
 }
 
 // return midlleware-like handler that place in front of handler that needed for auth
-func (v *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
+func (a *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := v.session.GetString(r.Context(), sessUserToken)
-			if token == "" {
-				v.logger.Error("session return invalid userToken")
+			v := a.session.Get(r.Context(), Session_Account)
+			acc, ok := v.(*account)
+			if !ok {
+				a.logger.Errorf("session return invalid account type: %T", v)
 				http.Redirect(w, r, loginRedirectURL, http.StatusSeeOther)
 				return
 			}
 
-			ctx := setUserTokenCtx(r.Context(), (*userToken)(&token))
+			ctx := setAccountCtx(r.Context(), acc)
 			rr := r.WithContext(ctx)
 			next.ServeHTTP(w, rr)
 		})
@@ -141,7 +146,7 @@ func (v *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
 
 func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userToken, ok := getUserTokenFromCtx(ctx)
+	acc, ok := getAccountFromCtx(ctx)
 	if !ok {
 		v.logger.Error("apiHandler: wrong userID context")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
@@ -151,80 +156,72 @@ func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 	filename := r.URL.Query().Get("filename")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", filename))
 
-	objStream, err := v.backend.DownloadObject(ctx, &apipb.DownloadRequest{
-		Token:    userToken,
-		Filename: filename,
-	})
+	res, err := v.backend.DownloadObject(ctx, acc.UserID, filename)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
-	defer objStream.CloseSend()
+	defer res.Reader.Close()
+	if _, err := io.Copy(w, res.Reader); err != nil {
+		v.serviceErr(w, r, err)
+		return
+	}
+}
 
-	for {
-		res, err := objStream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			v.serviceErr(w, r, err)
+func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		acc, ok := getAccountFromCtx(ctx)
+		if !ok {
+			v.logger.Error("apiHandler: wrong userID context")
+			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
 		}
-		w.Write(res.Chunk)
+		defer v.session.Put(ctx, Session_Account, acc)
+
+		filename := r.URL.Query().Get("filename")
+		shareToken, ok := acc.SharedObjects[Filename(filename)]
+		if !ok {
+			res, err := v.backend.ShareObject(r.Context(), acc.UserID, filename)
+			if err != nil {
+				v.serviceErr(w, r, err)
+				return
+			}
+			shareToken.Key = res.ShareToken
+			shareToken.ValidUntil = res.ValidUntil
+		}
+
+		// w.Header().Set("Path", obj.Token)
+		q := url.Values{}
+		q.Set("shareToken", shareToken.Key)
+		shareURL := url.URL{
+			// Scheme:   r.URL.Scheme,
+			Host:     r.Host,
+			Path:     publicDownloadPath,
+			RawQuery: q.Encode(),
+		}
+
+		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(shareToken.ValidUntil.UTC()))
+		comp.Render(ctx, w)
 	}
-	// v.writeObject(w, r)
 }
 
 func (v *App) DownloadShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	token := r.URL.Query().Get("shareToken")
+	shareToken := r.URL.Query().Get("shareToken")
 
-	stream, err := v.backend.DownloadSharedObject(ctx, &apipb.DownloadSharedRequest{SharedToken: token})
+	object, err := v.backend.DownloadWithToken(ctx, shareToken)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
+	defer object.Reader.Close()
 
-	md, err := stream.Header()
-	if err != nil {
-		v.logger.Error(fmt.Sprintf("failed receive header: %v", err))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", object.Filename))
+	w.Header().Set("Content-Type", object.ContentType)
+	if _, err := io.Copy(w, object.Reader); err != nil {
 		v.serviceErr(w, r, err)
 		return
-	}
-	if md == nil {
-		_, xerr := stream.Recv()
-		err = errors.Join(err, xerr)
-		v.serviceErr(w, r, err)
-		return
-	}
-	var filename, contentType string
-	if xfilename := md.Get("filename"); len(xfilename) == 0 {
-		v.serviceErr(w, r, fmt.Errorf("missing header filename from server"))
-		return
-	} else {
-		filename = xfilename[0]
-	}
-	if xct := md.Get("filename"); len(xct) == 0 {
-		v.serviceErr(w, r, fmt.Errorf("missing header filename from server"))
-		return
-	} else {
-		contentType = xct[0]
-	}
-
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", filename))
-	w.Header().Set("Content-Type", contentType)
-
-	for {
-		res, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
-			v.serviceErr(w, r, errors.Join(err, stream.CloseSend()))
-			return
-		}
-		w.Write(res.Chunk)
 	}
 
 	// v.writeObject(w, r)
@@ -232,45 +229,36 @@ func (v *App) DownloadShare(w http.ResponseWriter, r *http.Request) {
 
 func (v *App) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userToken, ok := getUserTokenFromCtx(ctx)
+	acc, ok := getAccountFromCtx(ctx)
 	if !ok {
 		v.logger.Error("apiHandler: wrong userID context")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
+	defer v.session.Put(ctx, Session_Account, acc)
 
 	lastFilename := r.URL.Query().Get("last")
 
-	stream, err := v.backend.ListObject(r.Context(), &apipb.ListObjectRequest{
-		UserToken:    userToken,
-		Limit:        1000,
-		LastFilename: lastFilename,
-	})
+	c, err := v.backend.Objects(r.Context(), acc.UserID, lastFilename, 1000)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
-	defer stream.CloseSend()
 
 	// CANDIDATE TO HTMX SSE
-	var objects []storage.ObjectInfo
-
-	for {
-		obj, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			v.serviceErr(w, r, err)
-			return
+	var objects []blob.ObjectInfo
+	for obj := range c {
+		if obj.Err() != nil {
+			v.serviceErr(w, r, obj.Err())
+			break
 		}
-		objects = append(objects, storage.ObjectInfo{
-			Bucket:       obj.UserID,
+		objects = append(objects, blob.ObjectInfo{
+			Bucket:       obj.Bucket,
 			Filename:     obj.Filename,
 			ContentType:  obj.ContentType,
 			Sum:          obj.Sum,
 			Size:         obj.Size,
-			LastModified: obj.LastModified.AsTime(),
+			LastModified: obj.LastModified,
 		})
 	}
 
@@ -303,7 +291,7 @@ func (v *App) RegisterService(redirectURL string) http.HandlerFunc {
 		}
 
 		//insert account
-		if _, err := v.backend.Register(r.Context(), &apipb.RegisterRequest{
+		if _, err := v.backend.Register(r.Context(), RegisterParam{
 			Username: username,
 			Password: pass,
 		}); err != nil {
@@ -321,51 +309,18 @@ func (v *App) RegisterService(redirectURL string) http.HandlerFunc {
 
 }
 
-func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		shareToken, ok := getUserTokenFromCtx(ctx)
-		if !ok {
-			v.logger.Error("apiHandler: wrong userID context")
-			http.Error(w, "not authorized", http.StatusUnauthorized)
-			return
-		}
-		filename := r.URL.Query().Get("filename")
-		tkn, err := v.backend.ShareObject(r.Context(), &apipb.ShareObjectRequest{
-			Token:    shareToken,
-			Filename: filename,
-		})
-		if err != nil {
-			v.serviceErr(w, r, err)
-			return
-		}
-
-		// w.Header().Set("Path", obj.Token)
-		q := url.Values{}
-		q.Set("shareToken", tkn.ShareToken)
-		shareURL := url.URL{
-			// Scheme:   r.URL.Scheme,
-			Host:     r.Host,
-			Path:     publicDownloadPath,
-			RawQuery: q.Encode(),
-		}
-
-		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(tkn.ValidUntil.AsTime().UTC()))
-		comp.Render(ctx, w)
-	}
-}
-
 func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger", "newObject")
 	defer r.Body.Close()
 	//get userID
 	ctx := r.Context()
-	userToken, _ := getUserTokenFromCtx(ctx)
-	if userToken == "" {
-		v.logger.Error("apiHandler: userID is empty")
-		http.Error(w, "not authorized", http.StatusUnauthorized)
-		return
-	}
+	acc, _ := getAccountFromCtx(ctx)
+	// if userToken == "" {
+	// 	v.logger.Error("apiHandler: userID is empty")
+	// 	http.Error(w, "not authorized", http.StatusUnauthorized)
+	// 	return
+	// }
+	defer v.session.Put(ctx, Session_Account, acc)
 
 	fd, err := handleMultipart(r, "file")
 	if err != nil {
@@ -374,60 +329,43 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer fd.Close()
+	v.logger.Infof("http header X-File-Size: %d", fd.Size)
 
-	md := metadata.New(map[string]string{})
-	md.Set("filename", fd.Filename)
-	md.Set("authorization", userToken)
-	md.Set("content-type", fd.ContentType)
-	md.Set("content-length", strconv.Itoa(int(fd.Size)))
-
-	sCtx := metadata.NewOutgoingContext(ctx, md)
-	stream, err := v.backend.UploadObject(sCtx)
+	res, err := v.backend.UploadObject(r.Context(), acc.UserID, fd.Filename, fd.ContentType, fd.Size, fd.Body)
 	if err != nil {
-		v.serviceErr(w, r, err)
+		v.serviceErr(w, r, fmt.Errorf("uploading: %v", err))
 		return
 	}
-	defer stream.CloseSend()
 
-	chunk := make([]byte, 1024*1024*4)
-	for {
-		n, err := fd.Body.Read(chunk)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := stream.Send(&apipb.UploadRequest{
-			Token:       userToken,
-			Filename:    fd.Filename,
-			TotalSize:   fd.Size,
-			ContentType: fd.ContentType,
-			Chunk:       chunk[:n]},
-		); err != nil {
-			v.logger.Error("failed write chunk to backend")
-			http.Error(w, "", http.StatusInternalServerError)
-			return
-		}
-	}
+	// root := "/mnt/d/wsl/upload"
+	// os.MkdirAll(root, 0644)
+	// f, err := os.Create(filepath.Join(root, fd.Filename))
+	// if err != nil {
+	// 	v.serviceErr(w, r, fmt.Errorf("uploading: %v", err))
+	// 	return
+	// }
+	// defer f.Close()
 
-	w.WriteHeader(http.StatusOK)
+	// n, _ := io.Copy(f, fd.Body)
+	// v.logger.Infof("written: %d", n)
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(res.Sum))
+
 }
 
 func (v *App) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userToken, ok := getUserTokenFromCtx(ctx)
+	acc, ok := getAccountFromCtx(ctx)
 	if !ok {
 		v.logger.Error("apiHandler: wrong userID context")
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 		return
 	}
+	defer v.session.Put(ctx, Session_Account, acc)
+
 	filename := r.URL.Query().Get("filename")
-	_, err := v.backend.DeleteObject(ctx, &apipb.DeleteRequest{
-		UserToken: userToken,
-		Filename:  filename,
-	})
+	_, err := v.backend.Delete(ctx, acc.UserID, filename)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return

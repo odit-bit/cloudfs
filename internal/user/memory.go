@@ -5,8 +5,8 @@ import (
 	"sync"
 )
 
-var _ AccountStorer = (*memory)(nil)
-var _ TokenStorer = (*memory)(nil)
+// var _ AccountStorer = (*memory)(nil)
+// var _ TokenStorer = (*memory)(nil)
 
 type memory struct {
 	mu      sync.Mutex
@@ -23,6 +23,10 @@ func newInMemory() (*memory, error) {
 		mTkn:    map[string]Token{},
 		indexID: map[string]string{},
 	}, nil
+}
+
+func (i *memory) FindID(ctx context.Context, id string) (*Account, bool, error) {
+	panic("unimplemented")
 }
 
 // Delete implements TokenStorer
@@ -48,13 +52,13 @@ func (i *memory) GetToken(ctx context.Context, tkn string) (*Token, error) {
 func (i *memory) PutToken(ctx context.Context, token *Token) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	oldToken, ok := i.indexID[token.UserID()]
+	oldToken, ok := i.indexID[token.UserID]
 	if ok {
 		delete(i.mTkn, oldToken)
 	}
 
-	i.indexID[token.UserID()] = token.Key()
-	i.mTkn[token.Key()] = *token
+	i.indexID[token.UserID] = token.Key
+	i.mTkn[token.Key] = *token
 
 	return nil
 }
@@ -84,7 +88,7 @@ func (i *memory) FindUsername(ctx context.Context, username string) (*Account, e
 		ID:           u.ID,
 		Name:         u.Name,
 		HashPassword: u.HashPassword,
-		Quota:        u.Quota,
+		// Quota:        u.Quota,
 	}
 	return &result, nil
 

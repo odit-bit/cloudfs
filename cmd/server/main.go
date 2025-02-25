@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"expvar"
 	"flag"
@@ -11,12 +12,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/odit-bit/cloudfs/internal/storage"
-	"github.com/odit-bit/cloudfs/internal/user"
-	"github.com/odit-bit/cloudfs/server"
-	"github.com/odit-bit/cloudfs/server/apipb"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	blobModule "github.com/odit-bit/cloudfs/internal/blob/module"
+	userModule "github.com/odit-bit/cloudfs/internal/user/module"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -25,37 +28,83 @@ import (
 
 func main() {
 	var rpcPort, httpPort int
+	var minioAddr, minioAccess, minioSecret, postgreDns string
+	var minioSecure bool
 	flag.IntVar(&rpcPort, "rpc-port", 8181, "rpc-port")
 	flag.IntVar(&httpPort, "http-port", 8282, "http-port")
 
+	flag.StringVar(&minioAddr, "minio-addr", "localhost:9000", "minio address")
+	flag.StringVar(&minioAccess, "minio-access", "minioAdmin", "minio access")
+	flag.StringVar(&minioSecret, "minio-secret", "minioAdmin", "minio secret")
+	flag.BoolVar(&minioSecure, "minio-secure", false, "minio secure connection")
+
+	flag.StringVar(&postgreDns, "pg-addr", "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable", "postgre dns")
+
 	flag.Parse()
-
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	grpcAddr := fmt.Sprintf("%s:%d", "localhost", rpcPort)
-	httpAddr := fmt.Sprintf("%s:%d", "localhost", httpPort)
 
 	// setup logger
 	logger := logrus.New()
 	eg := errgroup.Group{}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	//setup outbound connection
+	mio, err := setupMinio(minioAddr, minioAccess, minioSecret, minioSecure)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	pg, err := setupPostgre(ctx, postgreDns)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	defer pg.Close()
+
 	// setup listener
+	grpcAddr := fmt.Sprintf("%s:%d", "localhost", rpcPort)
+	httpAddr := fmt.Sprintf("%s:%d", "localhost", httpPort)
 	l := tcpListener(grpcAddr)
 	l2 := tcpListener(httpAddr)
 	defer l.Close()
 	defer l2.Close()
 
-	// grpc module interceptor
+	// // OBJECTS
+	// objects := objectRepo.NewMinioBlob(mio)
+	// objectToken, err := objectRepo.NewPGShareToken(ctx, pg)
+	// if err != nil {
+	// 	logger.Error(err)
+	// 	return
+	// }
+	// o, _ := blob.New(ctx, objectToken, objects)
+
+	// // USERS
+	// users, err := userRepo.NewUserPG(ctx, pg)
+	// if err != nil {
+	// 	logger.Error(err)
+	// 	return
+	// }
+	// userToken, err := userRepo.NewUserTokenPG(ctx, pg)
+	// if err != nil {
+	// 	logger.Error(err)
+	// 	return
+	// }
+	// u, _ := user.New(ctx, users, userToken)
+	// ss := rpc.NewGrpcServer(o, u)
+	// apipb.RegisterStorageServiceServer(srv, ss)
 
 	//grpc server
-	o, _ := storage.NewWithMemory()
-	u := user.NewWithMemory()
-	ss := server.NewGrpcServer(o, u)
 	srv := grpc.NewServer()
+	if err := userModule.Start(ctx, logger, srv, pg); err != nil {
+		logger.Error(err)
+		return
+	}
+	if err := blobModule.Start(ctx, logger, mio, pg, srv); err != nil {
+		logger.Error(err)
+		return
+	}
 	reflection.Register(srv)
-	apipb.RegisterStorageServiceServer(srv, ss)
-
 	// grpc serve
 	eg.Go(func() error {
 		if err := srv.Serve(l); err != nil {
@@ -97,7 +146,6 @@ func main() {
 	if err := eg.Wait(); err != nil {
 		logger.Infof("exit:%v", err)
 	}
-	os.Exit(0)
 }
 
 func tcpListener(addr string) *net.TCPListener {
@@ -110,4 +158,40 @@ func tcpListener(addr string) *net.TCPListener {
 		panic(err)
 	}
 	return l
+}
+
+func setupMinio(endpoint, access, secret string, secure bool) (*minio.Client, error) {
+
+	creds := credentials.NewStaticV4(access, secret, "")
+	cli, err := minio.New(endpoint, &minio.Options{
+		Creds:  creds,
+		Secure: secure,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cancel, err := cli.HealthCheck(2 * time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	if cli.IsOnline() {
+		return cli, nil
+	} else {
+		return nil, fmt.Errorf("minio server is offline")
+	}
+}
+
+func setupPostgre(ctx context.Context, dns string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dns)
+	if err != nil {
+		return nil, err
+	}
+	ctx2, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx2); err != nil {
+		return nil, err
+	}
+	return db, nil
 }

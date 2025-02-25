@@ -3,7 +3,7 @@ package component
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"github.com/odit-bit/cloudfs/internal/storage"
+	"github.com/odit-bit/cloudfs/internal/blob"
 )
 
 // templ List() {
@@ -60,7 +60,7 @@ import (
 // }
 
 type ListAttribute struct {
-	Objects []storage.ObjectInfo
+	Objects []blob.ObjectInfo
 
 	//download
 	DownloadAPI string
@@ -71,11 +71,11 @@ type ListAttribute struct {
 	ShareFileAPI string
 }
 
-func (la *ListAttribute) LastObject() (bool, storage.ObjectInfo) {
+func (la *ListAttribute) LastObject() (bool, blob.ObjectInfo) {
 	if len(la.Objects) > 0 {
 		return true, la.Objects[len(la.Objects)-1]
 	}
-	return false, storage.ObjectInfo{}
+	return false, blob.ObjectInfo{}
 }
 
 func (la *ListAttribute) Length() int {

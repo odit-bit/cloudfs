@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package blobpb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./blobpb";
+
+
+
+message ListObjectRequest {
+    string bucket = 1;
+    int32 limit = 2;
+    string lastFilename = 3;
+}
+
+message ListObjectResponse {
+    string bucket = 1;
+    string filename = 2;
+    int64 size = 3;
+    string sum = 4;
+    string contentType = 5;
+    google.protobuf.Timestamp lastModified = 6;
+}
+
+///
+
+
+message DeleteRequest {
+    string bucket = 1;
+    string filename = 2;
+}
+
+message DeleteResponse {
+    google.protobuf.Timestamp DeleteAt = 5;
+}
+
+
+///
+
+message UploadRequest {
+    // string bucket = 1; 
+    // string filename = 2;
+    // string contentType = 3;
+    // int64 totalSize = 4;
+    bytes chunk = 1;
+}
+
+
+message UploadResponse {
+      string sum = 2;
+}
+
+///
+
+message ShareObjectRequest {
+    string bucket = 1;
+    string filename = 2;
+}
+
+message ShareObjectResponse {
+    string shareToken = 1;
+    google.protobuf.Timestamp validUntil = 2;
+}
+
+////
+
+message DownloadRequest {
+    string bucket = 1;
+    string filename = 2;
+}
+
+message DownloadSharedRequest {
+    string sharedToken = 1;
+}
+
+////
+
+message DownloadResponse {
+    int64 totalSize = 1;
+    bytes chunk = 2; 
+    string contentType =3;
+}
+
+///

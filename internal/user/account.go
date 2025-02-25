@@ -12,14 +12,18 @@ type Account struct {
 	ID           uuid.UUID
 	Name         string
 	HashPassword string
-	Quota        int64
+	// Quota        int64
+	// Usage        int64
 }
 
 func CreateAccount(username, password string) *Account {
 	acc := Account{
 		// ID:   [16]byte{},
 		Name: username,
+		// Quota: 10 * humanize.GByte,
+		// Usage: 1,
 	}
+
 	acc.createHash(password)
 	acc.MustGenerateID()
 	return &acc
@@ -45,10 +49,11 @@ func (acc *Account) CheckPassword(password string) bool {
 	return true
 }
 
+// func (acc *Account) CheckAvail(size int64) bool {
+// 	after := acc.Usage + size
+// 	return after <= acc.Quota
+// }
+
 func (acc *Account) MustGenerateID() {
 	acc.ID = uuid.New()
 }
-
-
-
-

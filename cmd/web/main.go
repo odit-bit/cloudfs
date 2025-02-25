@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/odit-bit/cloudfs/web"
 	"github.com/odit-bit/cloudfs/lib/xhttp"
+	"github.com/odit-bit/cloudfs/web"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -70,14 +70,13 @@ func main() {
 	); err != nil {
 		log.Fatal(err)
 	}
-	os.Exit(0)
 }
 
 func InitDevService(ctx context.Context, backendAddr string) (*web.App, error) {
 	// setup session token
 	sess := scs.New() //session management
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	logger := logrus.New()
 
 	server, err := web.New(backendAddr, sess, logger)
 	if err != nil {

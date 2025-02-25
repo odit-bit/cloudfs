@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/web/component"
-	"github.com/odit-bit/cloudfs/internal/storage"
 )
 
 func (v *App) serviceErr(w http.ResponseWriter, r *http.Request, err error) {
@@ -14,7 +14,7 @@ func (v *App) serviceErr(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func (v *App) writeObject(w http.ResponseWriter, r *http.Request, obj *storage.ObjectInfo) {
+func (v *App) writeObject(w http.ResponseWriter, r *http.Request, obj *blob.ObjectInfo) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", obj.Filename))
 
 	defer obj.Data.Close()
