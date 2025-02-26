@@ -28,7 +28,7 @@ func NewShareToken(bucket, filename string, expire time.Duration) *Token {
 		Key:      key,
 		Bucket:   bucket,
 		Filename: filename,
-		Expire:   time.Now().Add(expire),
+		Expire:   time.Now().Add(expire).UTC(),
 	}
 	return &t
 }

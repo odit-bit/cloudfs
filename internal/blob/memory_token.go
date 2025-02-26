@@ -38,11 +38,11 @@ func (m *memory) Get(ctx context.Context, tokenKey string) (*Token, bool, error)
 	return v, true, nil
 }
 
-func (m *memory) GetByBucket(ctx context.Context, bucket string) (*Token, bool, error) {
+func (m *memory) GetByFilename(ctx context.Context, filename string) (*Token, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, v := range m.tm {
-		if v.Bucket == bucket {
+		if v.Filename == filename {
 			return v, true, nil
 		}
 	}

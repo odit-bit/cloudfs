@@ -177,11 +177,11 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			http.Error(w, "not authorized", http.StatusUnauthorized)
 			return
 		}
-		defer v.session.Put(ctx, Session_Account, acc)
 
 		filename := r.URL.Query().Get("filename")
 		shareToken, ok := acc.SharedObjects[Filename(filename)]
-		if !ok {
+		// v.logger.Infof("SHARE_FILE token: %v, filename: %v \n", shareToken.Key, filename)
+		if !ok || shareToken.IsExpired() {
 			res, err := v.backend.ShareObject(r.Context(), acc.UserID, filename)
 			if err != nil {
 				v.serviceErr(w, r, err)
@@ -189,6 +189,8 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			}
 			shareToken.Key = res.ShareToken
 			shareToken.ValidUntil = res.ValidUntil
+			acc.SharedObjects[Filename(filename)] = shareToken
+			v.session.Put(ctx, Session_Account, acc)
 		}
 
 		// w.Header().Set("Path", obj.Token)

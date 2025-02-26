@@ -29,7 +29,7 @@ type ObjectStorer interface {
 type TokenStorer interface {
 	Put(ctx context.Context, token *Token) OpErr
 	Get(ctx context.Context, tokenKey string) (*Token, bool, error)
-	GetByBucket(ctx context.Context, bucket string) (*Token, bool, error)
+	GetByFilename(ctx context.Context, bucket string) (*Token, bool, error)
 	Delete(ctx context.Context, tokenKey string) error
 }
 
@@ -75,7 +75,7 @@ func (o *Storage) CreateShareToken(ctx context.Context, bucket, filename string,
 	if bucket == "" {
 		return nil, fmt.Errorf("invalid bucket")
 	}
-	tkn, ok, _ := o.tokens.GetByBucket(ctx, bucket)
+	tkn, ok, _ := o.tokens.GetByFilename(ctx, filename)
 	if !ok {
 		if expire <= 60*time.Minute {
 			expire = 60 * time.Minute
@@ -107,7 +107,11 @@ func (o *Storage) DownloadToken(ctx context.Context, tknKey string) (*ObjectInfo
 }
 
 func (o *Storage) Delete(ctx context.Context, userID, filename string) error {
-	return o.objects.Delete(ctx, userID, filename)
+	if err := o.objects.Delete(ctx, userID, filename); err != nil {
+		return err
+	}
+	o.tokens.Delete(ctx, filename)
+	return nil
 }
 
 func (o *Storage) List(ctx context.Context, bucket string, limit int, lastKey string) *Iterator {

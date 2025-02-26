@@ -36,8 +36,14 @@ func NewPGShareToken(ctx context.Context, db *sql.DB) (*pgShareToken, error) {
 }
 
 // Delete implements blob.TokenStorer.
-func (p *pgShareToken) Delete(ctx context.Context, tokenKey string) error {
-	panic("unimplemented")
+func (p *pgShareToken) Delete(ctx context.Context, filename string) error {
+	query := `
+	DELETE FROM object_tokens
+	WHERE filename = $1
+	;
+`
+	_, err := p.db.ExecContext(ctx, query, filename)
+	return err
 }
 
 // Get implements blob.TokenStorer.
@@ -64,14 +70,14 @@ func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, b
 }
 
 // GetByBucket implements blob.TokenStorer.
-func (p *pgShareToken) GetByBucket(ctx context.Context, bucket string) (*blob.Token, bool, error) {
+func (p *pgShareToken) GetByFilename(ctx context.Context, filename string) (*blob.Token, bool, error) {
 	query := `
 		SELECT * FROM object_tokens
-		WHERE bucket = $1
+		WHERE filename = $1
 		;
 	`
 	tkn := &blob.Token{}
-	err := p.db.QueryRowContext(ctx, query, bucket).Scan(
+	err := p.db.QueryRowContext(ctx, query, filename).Scan(
 		&tkn.Key,
 		&tkn.Bucket,
 		&tkn.Filename,
@@ -95,6 +101,12 @@ func (p *pgShareToken) Put(ctx context.Context, token *blob.Token) blob.OpErr {
 	`
 	_, err := p.db.ExecContext(ctx, query, token.Key, token.Bucket, token.Filename, token.Expire)
 	if err != nil {
+		// var pgErr *pgconn.PgError
+		// if errors.As(err, &pgErr) {
+		// 	if pgErr.Code == "23505" {
+		// 		return &blob.RecordIsExist{Err: fmt.Errorf("unique constraint violation: %w", err)}
+		// 	}
+		// }
 		return blob.NewException(err)
 	}
 	return nil

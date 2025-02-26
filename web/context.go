@@ -53,6 +53,10 @@ type ShareToken struct {
 	ValidUntil time.Time
 }
 
+func (st *ShareToken) IsExpired() bool {
+	return time.Now().After(st.ValidUntil)
+}
+
 // type SharedObjectToken map[filename]tokenString
 
 func getAccountFromCtx(ctx context.Context) (*account, bool) {

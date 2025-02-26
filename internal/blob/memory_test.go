@@ -134,6 +134,6 @@ func Test_memory_token(t *testing.T) {
 	tkn2, _, _ := mem.Get(ctx, tkn.Key)
 	assert.Equal(t, tkn, tkn2)
 
-	tkn3, _, _ := mem.GetByBucket(ctx, tkn.Bucket)
+	tkn3, _, _ := mem.GetByFilename(ctx, tkn.Filename)
 	assert.Equal(t, tkn, tkn3)
 }
