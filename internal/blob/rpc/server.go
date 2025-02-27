@@ -164,8 +164,6 @@ func (b *BlobService) UploadObject(stream grpc.ClientStreamingServer[blobpb.Uplo
 		return err
 	}
 
-	b.logger.Info("size:", header.totalSize)
-
 	// uploading
 	var written int
 	pr, pw := io.Pipe()
@@ -208,9 +206,9 @@ func (b *BlobService) UploadObject(stream grpc.ClientStreamingServer[blobpb.Uplo
 		return err
 	}
 
-	// if res.Size != header.totalSize {
-	// 	return status.Error(codes.InvalidArgument, fmt.Sprintf("bytes written not match with TotalSize request: %d", written))
-	// }
+	if res.Size != header.totalSize {
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("bytes written not match with TotalSize request: %d", written))
+	}
 
 	if err := stream.SendAndClose(&blobpb.UploadResponse{
 		Sum: res.Sum,
@@ -218,7 +216,7 @@ func (b *BlobService) UploadObject(stream grpc.ClientStreamingServer[blobpb.Uplo
 		return err
 	}
 
-	b.logger.Infof("written bytes: %d", written)
+	// b.logger.Infof("written bytes: %d", written)
 	return nil
 }
 

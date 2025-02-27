@@ -120,7 +120,7 @@ func (v *App) LoginService(redirecURL string) http.HandlerFunc {
 
 		acc := &account{UserID: res.UserID, Token: res.Token, SharedObjects: map[Filename]ShareToken{}}
 		v.session.Put(r.Context(), Session_Account, acc)
-		v.logger.Info(fmt.Sprintf("loginService put token: %v", acc))
+		// v.logger.Info(fmt.Sprintf("loginService put token: %v", acc))
 		http.Redirect(w, r, redirecURL, http.StatusSeeOther)
 	}
 }
@@ -132,7 +132,7 @@ func (a *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
 			v := a.session.Get(r.Context(), Session_Account)
 			acc, ok := v.(*account)
 			if !ok {
-				a.logger.Errorf("session return invalid account type: %T", v)
+				a.logger.Debug("session return invalid account (unauthorized): %T", v)
 				http.Redirect(w, r, loginRedirectURL, http.StatusSeeOther)
 				return
 			}
@@ -154,18 +154,13 @@ func (v *App) Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := r.URL.Query().Get("filename")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", filename))
-
 	res, err := v.backend.DownloadObject(ctx, acc.UserID, filename)
 	if err != nil {
 		v.serviceErr(w, r, err)
 		return
 	}
 	defer res.Reader.Close()
-	if _, err := io.Copy(w, res.Reader); err != nil {
-		v.serviceErr(w, r, err)
-		return
-	}
+	v.attachment(w, r, filename, res.Reader)
 }
 
 func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
@@ -203,7 +198,7 @@ func (v *App) ShareFile(publicDownloadPath string) http.HandlerFunc {
 			RawQuery: q.Encode(),
 		}
 
-		comp := component.ShareFileResponse(shareURL.String(), humanize.Time(shareToken.ValidUntil.UTC()))
+		comp := component.ShareFileResponse(shareToken.Key, shareURL.String(), humanize.Time(shareToken.ValidUntil.UTC()))
 		comp.Render(ctx, w)
 	}
 }
@@ -314,15 +309,11 @@ func (v *App) RegisterService(redirectURL string) http.HandlerFunc {
 func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger", "newObject")
 	defer r.Body.Close()
+
 	//get userID
 	ctx := r.Context()
 	acc, _ := getAccountFromCtx(ctx)
-	// if userToken == "" {
-	// 	v.logger.Error("apiHandler: userID is empty")
-	// 	http.Error(w, "not authorized", http.StatusUnauthorized)
-	// 	return
-	// }
-	defer v.session.Put(ctx, Session_Account, acc)
+	// defer v.session.Put(ctx, Session_Account, acc)
 
 	fd, err := handleMultipart(r, "file")
 	if err != nil {
@@ -331,25 +322,13 @@ func (v *App) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer fd.Close()
-	v.logger.Infof("http header X-File-Size: %d", fd.Size)
+	// v.logger.Infof("http header X-File-Size: %d", fd.Size)
 
 	res, err := v.backend.UploadObject(r.Context(), acc.UserID, fd.Filename, fd.ContentType, fd.Size, fd.Body)
 	if err != nil {
 		v.serviceErr(w, r, fmt.Errorf("uploading: %v", err))
 		return
 	}
-
-	// root := "/mnt/d/wsl/upload"
-	// os.MkdirAll(root, 0644)
-	// f, err := os.Create(filepath.Join(root, fd.Filename))
-	// if err != nil {
-	// 	v.serviceErr(w, r, fmt.Errorf("uploading: %v", err))
-	// 	return
-	// }
-	// defer f.Close()
-
-	// n, _ := io.Copy(f, fd.Body)
-	// v.logger.Infof("written: %d", n)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(res.Sum))

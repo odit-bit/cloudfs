@@ -6,58 +6,7 @@ import (
 	"github.com/odit-bit/cloudfs/internal/blob"
 )
 
-// templ List() {
-// 	<body>
-// 		<style>
 
-// 		table {
-// 			text-align: center;
-// 			border-collapse: collapse;
-// 			width: 100%;
-// 			margin: 0 auto;
-// 		}
-
-// 		th, td {
-// 			padding: 12px;
-// 			text-align: left;
-// 			border-bottom: 1px solid #DDD;
-// 		}
-
-// 		th {
-// 			background-color: #f2f2f2;
-// 			font-weight: bold;
-// 			text-transform: uppercase;
-// 		}
-
-// 		tr:hover {
-// 			background-color: #D6EEEE;
-// 		}
-
-// 		tr:nth-child(even) {
-// 			background-color: #f2f2f2;
-// 		}
-
-// 		a {
-// 			text-decoration: none;
-// 			color: #0066cc;
-// 		}
-
-// 		a:hover {
-// 			text-decoration: underline;
-// 		}
-
-// 	</style>
-// 		<div>
-// 			//TODO: make sticky
-// 			@Upload("/api/upload")
-// 		</div>
-// 		<div>
-// 			<table>
-// 				<div hx-get="/list/data"></div>
-// 			</table>
-// 		</div>
-// 	</body>
-// }
 
 type ListAttribute struct {
 	Objects []blob.ObjectInfo
@@ -134,13 +83,13 @@ templ ListData(attr *ListAttribute) {
 	}
 }
 
-templ ShareFileResponse(shareFileURL, validUntil string) {
+templ ShareFileResponse(key ,shareFileURL, validUntil string) {
 	<button
 		class="uk-button uk-button-default uk-margin-small-right"
 		type="button"
-		uk-toggle="target: #shareModal"
+		uk-toggle={fmt.Sprintf("target: #shareModal%s", key)}
 	>show url</button>
-	<div id="shareModal" class="uk-text-center" uk-modal>
+	<div id={fmt.Sprintf("shareModal%s", key)} class="uk-text-center" uk-modal>
 		<div class="uk-modal-dialog uk-modal-body uk-width-auto">
 			<h2 class="uk-modal-title">ShareFile</h2>
 			<p>{ shareFileURL }</p>

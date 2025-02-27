@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/web/component"
 )
 
@@ -14,11 +13,10 @@ func (v *App) serviceErr(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func (v *App) writeObject(w http.ResponseWriter, r *http.Request, obj *blob.ObjectInfo) {
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", obj.Filename))
+func (v *App) attachment(w http.ResponseWriter, r *http.Request, name string, body io.Reader) {
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v", name))
 
-	defer obj.Data.Close()
-	if _, err := io.Copy(w, obj.Data); err != nil {
+	if _, err := io.Copy(w, body); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

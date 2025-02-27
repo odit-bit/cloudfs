@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"time"
 
@@ -115,7 +114,6 @@ func (b *Backend) UploadObject(ctx context.Context, bucket, filename, contentTyp
 		}
 		written += n
 	}
-	log.Printf("grpc client written bytes: %d", written)
 	res, err := stream.CloseAndRecv()
 	if err != nil {
 		return nil, fmt.Errorf("close upload stream: %v", err)

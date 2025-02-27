@@ -1,78 +1,69 @@
 package sessionredis
 
-import (
-	"context"
-	"log"
-	"time"
+// func RedisClientBuilder(url string) *redis.Client {
+// 	opt, err := redis.ParseURL(url)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	cli := redis.NewClient(opt)
+// 	cli.Conn()
+// 	return cli
+// }
 
-	"github.com/alexedwards/scs/v2"
-	"github.com/redis/go-redis/v9"
-)
+// var _ scs.Store = (*sessionStore)(nil)
 
-func RedisClientBuilder(url string) *redis.Client {
-	opt, err := redis.ParseURL(url)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cli := redis.NewClient(opt)
-	cli.Conn()
-	return cli
-}
+// type sessionStore struct {
+// 	cli *redis.Client
+// }
 
-var _ scs.Store = (*sessionStore)(nil)
+// func NewSessionRedis(url string) *sessionStore {
+// 	cli := RedisClientBuilder(url)
+// 	return &sessionStore{
+// 		cli: cli,
+// 	}
+// }
 
-type sessionStore struct {
-	cli *redis.Client
-}
+// // Commit implements scs.Store.
+// func (s *sessionStore) Commit(token string, b []byte, expiry time.Time) error {
+// 	second := time.Until(expiry)
+// 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+// 	defer cancel()
+// 	if err := s.cli.Set(ctx, token, b, second).Err(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-func NewSessionRedis(url string) *sessionStore {
-	cli := RedisClientBuilder(url)
-	return &sessionStore{
-		cli: cli,
-	}
-}
+// // Delete implements scs.Store.
+// func (s *sessionStore) Delete(token string) error {
+// 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+// 	defer cancel()
+// 	res := s.cli.Del(ctx, token)
+// 	if res.Err() != nil {
+// 		return res.Err()
+// 	}
+// 	return nil
+// }
 
-// Commit implements scs.Store.
-func (s *sessionStore) Commit(token string, b []byte, expiry time.Time) error {
-	second := time.Until(expiry)
-	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-	defer cancel()
-	if err := s.cli.Set(ctx, token, b, second).Err(); err != nil {
-		return err
-	}
-	return nil
-}
+// // Find implements scs.Store.
+// func (s *sessionStore) Find(token string) ([]byte, bool, error) {
+// 	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+// 	defer cancel()
 
-// Delete implements scs.Store.
-func (s *sessionStore) Delete(token string) error {
-	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-	defer cancel()
-	res := s.cli.Del(ctx, token)
-	if res.Err() != nil {
-		return res.Err()
-	}
-	return nil
-}
+// 	res := s.cli.Get(ctx, token)
+// 	err := res.Err()
+// 	if err != nil {
+// 		if err == redis.Nil {
+// 			return nil, false, nil
+// 		}
+// 		return nil, false, err
+// 	}
 
-// Find implements scs.Store.
-func (s *sessionStore) Find(token string) ([]byte, bool, error) {
-	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-	defer cancel()
+// 	b, err := res.Bytes()
+// 	if err != nil {
+// 		return nil, false, err
+// 	}
 
-	res := s.cli.Get(ctx, token)
-	err := res.Err()
-	if err != nil {
-		if err == redis.Nil {
-			return nil, false, nil
-		}
-		return nil, false, err
-	}
+// 	return b, true, nil
 
-	b, err := res.Bytes()
-	if err != nil {
-		return nil, false, err
-	}
-
-	return b, true, nil
-
-}
+// }
