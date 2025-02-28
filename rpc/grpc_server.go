@@ -148,7 +148,7 @@ func (g *GrpcServer) ShareObject(ctx context.Context, req *apipb.ShareObjectRequ
 }
 
 func (g *GrpcServer) DownloadSharedObject(req *apipb.DownloadSharedRequest, stream grpc.ServerStreamingServer[apipb.DownloadResponse]) error {
-	info, err := g.objects.DownloadToken(stream.Context(), req.SharedToken)
+	info, err := g.objects.WithShareToken(stream.Context(), req.SharedToken)
 	if err != nil {
 		if errors.Is(err, blob.ErrInvalidShareToken) {
 			return status.Error(codes.Unauthenticated, err.Error())
@@ -192,7 +192,7 @@ func (g *GrpcServer) DownloadSharedObject(req *apipb.DownloadSharedRequest, stre
 		}
 
 	}
-	
+
 	return nil
 }
 
@@ -214,7 +214,7 @@ func (g *GrpcServer) DownloadObject(req *apipb.DownloadRequest, stream grpc.Serv
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "invalid token")
 	}
-	info, err := g.objects.Download(stream.Context(), tkn.UserID, req.Filename)
+	info, err := g.objects.Get(stream.Context(), tkn.UserID, req.Filename)
 	if err != nil {
 		return status.Error(codes.Aborted, err.Error())
 	}
@@ -330,7 +330,7 @@ func (g *GrpcServer) UploadObject(stream grpc.ClientStreamingServer[apipb.Upload
 	}()
 
 	res, err := g.objects.Put(stream.Context(),
-		&blob.UploadParam{
+		&blob.PutParam{
 			Bucket:      tkn.UserID,
 			Filename:    header.filename,
 			ContentType: header.contentType,

@@ -11,9 +11,9 @@ import (
 func Test_iterator(t *testing.T) {
 
 	tc := []struct {
-		input []*ObjectInfo
+		input []*Info
 	}{
-		{input: []*ObjectInfo{
+		{input: []*Info{
 			{
 				Bucket:   "1",
 				Filename: "obj1",
@@ -23,7 +23,7 @@ func Test_iterator(t *testing.T) {
 				Filename: "obj2",
 			},
 		}},
-		{input: []*ObjectInfo{}},
+		{input: []*Info{}},
 	}
 
 	// //
@@ -38,7 +38,7 @@ func Test_iterator(t *testing.T) {
 	// }
 
 	for _, test := range tc {
-		objC := make(chan *ObjectInfo, 10)
+		objC := make(chan *Info, 10)
 
 		for _, v := range test.input {
 			objC <- v
@@ -48,7 +48,7 @@ func Test_iterator(t *testing.T) {
 		it := Iterator{
 			UserID: "",
 			C:      objC,
-			obj:    &ObjectInfo{},
+			obj:    &Info{},
 			// err:    nil,
 		}
 
@@ -70,8 +70,10 @@ func Test_readBlob(t *testing.T) {
 
 	buf := bytes.NewBuffer(data)
 	rc := io.NopCloser(buf)
-	obj := ObjectInfo{
-		Size: int64(len(data)),
+	obj := Object{
+		Info: Info{
+			Size: int64(len(data)),
+		},
 		Data: rc,
 	}
 

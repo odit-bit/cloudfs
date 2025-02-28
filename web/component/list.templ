@@ -3,13 +3,22 @@ package component
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"github.com/odit-bit/cloudfs/internal/blob"
+	"time"
 )
 
 
+type Object struct {
+	Bucket string 
+	Filename string 
+	ContentType string 
+	Sum string 
+	Size int64
+	LastModified time.Time
+}
+
 
 type ListAttribute struct {
-	Objects []blob.ObjectInfo
+	Objects []Object
 
 	//download
 	DownloadAPI string
@@ -20,11 +29,11 @@ type ListAttribute struct {
 	ShareFileAPI string
 }
 
-func (la *ListAttribute) LastObject() (bool, blob.ObjectInfo) {
+func (la *ListAttribute) LastObject() (bool, Object) {
 	if len(la.Objects) > 0 {
 		return true, la.Objects[len(la.Objects)-1]
 	}
-	return false, blob.ObjectInfo{}
+	return false, Object{}
 }
 
 func (la *ListAttribute) Length() int {

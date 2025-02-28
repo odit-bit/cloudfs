@@ -11,11 +11,20 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"github.com/odit-bit/cloudfs/internal/blob"
+	"time"
 )
 
+type Object struct {
+	Bucket       string
+	Filename     string
+	ContentType  string
+	Sum          string
+	Size         int64
+	LastModified time.Time
+}
+
 type ListAttribute struct {
-	Objects []blob.ObjectInfo
+	Objects []Object
 
 	//download
 	DownloadAPI string
@@ -26,11 +35,11 @@ type ListAttribute struct {
 	ShareFileAPI string
 }
 
-func (la *ListAttribute) LastObject() (bool, blob.ObjectInfo) {
+func (la *ListAttribute) LastObject() (bool, Object) {
 	if len(la.Objects) > 0 {
 		return true, la.Objects[len(la.Objects)-1]
 	}
-	return false, blob.ObjectInfo{}
+	return false, Object{}
 }
 
 func (la *ListAttribute) Length() int {
@@ -90,7 +99,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var2 string
 				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(obj.Filename)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 60, Col: 25}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 69, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 				if templ_7745c5c3_Err != nil {
@@ -103,7 +112,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(humanize.Bytes(uint64(obj.Size)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 61, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 70, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -116,7 +125,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(humanize.Time(obj.LastModified))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 62, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 71, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -138,7 +147,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(obj.Filename)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 63, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 72, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -151,7 +160,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("shareButton%d", i))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 64, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 73, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -164,7 +173,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(attr.ShareFileURL(obj.Filename))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 68, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 77, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -177,7 +186,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#shareButton%d", i))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 69, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 78, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -190,7 +199,7 @@ func ListData(attr *ListAttribute) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(attr.DeleteURL(obj.Filename))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 73, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 82, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -243,7 +252,7 @@ func ShareFileResponse(key, shareFileURL, validUntil string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("target: #shareModal%s", key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 90, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 99, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -256,7 +265,7 @@ func ShareFileResponse(key, shareFileURL, validUntil string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("shareModal%s", key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 92, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 101, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -269,7 +278,7 @@ func ShareFileResponse(key, shareFileURL, validUntil string) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(shareFileURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 95, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 104, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -282,7 +291,7 @@ func ShareFileResponse(key, shareFileURL, validUntil string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(validUntil)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 96, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/component/list.templ`, Line: 105, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {

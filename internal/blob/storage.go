@@ -20,8 +20,8 @@ type OpErr interface {
 }
 
 type ObjectStorer interface {
-	Put(ctx context.Context, bucket, filename string, reader io.ReadCloser, size int64, contentType string) (*ObjectInfo, error)
-	Get(ctx context.Context, bucket, filename string) (*ObjectInfo, error)
+	Put(ctx context.Context, bucket, filename string, reader io.ReadCloser, size int64, contentType string) (*Info, error)
+	Get(ctx context.Context, bucket, filename string) (*Object, error)
 	Delete(ctx context.Context, bucket, filename string) error
 	ObjectIterator(ctx context.Context, bucket string, limit int, lastFilename string) *Iterator
 }
@@ -48,11 +48,11 @@ func New(ctx context.Context, tokens TokenStorer, objects ObjectStorer) (*Storag
 	return &Storage{tokens: tokens, objects: objects}, nil
 }
 
-func (o *Storage) Download(ctx context.Context, bucket, filename string) (*ObjectInfo, error) {
+func (o *Storage) Get(ctx context.Context, bucket, filename string) (*Object, error) {
 	return o.objects.Get(ctx, bucket, filename)
 }
 
-type UploadParam struct {
+type PutParam struct {
 	Bucket      string
 	Filename    string
 	Size        int64
@@ -60,7 +60,7 @@ type UploadParam struct {
 	ContentType string
 }
 
-func (o *Storage) Put(ctx context.Context, param *UploadParam) (*ObjectInfo, error) {
+func (o *Storage) Put(ctx context.Context, param *PutParam) (*Info, error) {
 	obj, err := o.objects.Put(ctx, param.Bucket, param.Filename, param.Body, param.Size, param.ContentType)
 	if err != nil {
 		return nil, err
@@ -77,9 +77,6 @@ func (o *Storage) CreateShareToken(ctx context.Context, bucket, filename string,
 	}
 	tkn, ok, _ := o.tokens.GetByFilename(ctx, filename)
 	if !ok {
-		if expire <= 60*time.Minute {
-			expire = 60 * time.Minute
-		}
 		tkn := NewShareToken(bucket, filename, expire)
 		err := o.tokens.Put(ctx, tkn)
 		return tkn, err
@@ -87,7 +84,7 @@ func (o *Storage) CreateShareToken(ctx context.Context, bucket, filename string,
 	return tkn, nil
 }
 
-func (o *Storage) DownloadToken(ctx context.Context, tknKey string) (*ObjectInfo, error) {
+func (o *Storage) WithShareToken(ctx context.Context, tknKey string) (*Object, error) {
 	tkn, ok, err := o.tokens.Get(ctx, tknKey)
 	if err != nil {
 		return nil, err

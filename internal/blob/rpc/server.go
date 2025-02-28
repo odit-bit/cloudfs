@@ -48,7 +48,7 @@ func (b *BlobService) DeleteObject(ctx context.Context, req *blobpb.DeleteReques
 // DownloadObject implements blobpb.StorageServiceServer.
 func (b *BlobService) DownloadObject(req *blobpb.DownloadRequest, stream grpc.ServerStreamingServer[blobpb.DownloadResponse]) error {
 
-	info, err := b.objects.Download(stream.Context(), req.Bucket, req.Filename)
+	info, err := b.objects.Get(stream.Context(), req.Bucket, req.Filename)
 	if err != nil {
 		return status.Error(codes.Aborted, err.Error())
 	}
@@ -86,7 +86,7 @@ func (b *BlobService) DownloadObject(req *blobpb.DownloadRequest, stream grpc.Se
 
 // DownloadSharedObject implements blobpb.StorageServiceServer.
 func (b *BlobService) DownloadSharedObject(req *blobpb.DownloadSharedRequest, stream grpc.ServerStreamingServer[blobpb.DownloadResponse]) error {
-	info, err := b.objects.DownloadToken(stream.Context(), req.SharedToken)
+	obj, err := b.objects.WithShareToken(stream.Context(), req.SharedToken)
 	if err != nil {
 		if errors.Is(err, blob.ErrInvalidShareToken) {
 			return status.Error(codes.Unauthenticated, err.Error())
@@ -99,19 +99,19 @@ func (b *BlobService) DownloadSharedObject(req *blobpb.DownloadSharedRequest, st
 	}
 
 	header := map[string]string{
-		"filename":     info.Filename,
-		"content-type": info.ContentType,
-		"size":         strconv.FormatInt(info.Size, 10),
+		"filename":     obj.Filename,
+		"content-type": obj.ContentType,
+		"size":         strconv.FormatInt(obj.Size, 10),
 	}
 
 	if err := stream.SendHeader(metadata.New(header)); err != nil {
 		return status.Error(codes.Aborted, "failed send header")
 	}
 
-	defer info.Data.Close()
+	defer obj.Data.Close()
 	chunk := make([]byte, 1024*1024*3)
 	for {
-		n, err := info.Data.Read(chunk)
+		n, err := obj.Data.Read(chunk)
 		if err != nil {
 			if err != io.EOF {
 				return err
@@ -192,7 +192,7 @@ func (b *BlobService) UploadObject(stream grpc.ClientStreamingServer[blobpb.Uplo
 	}()
 
 	res, err := b.objects.Put(stream.Context(),
-		&blob.UploadParam{
+		&blob.PutParam{
 			Bucket:      header.bucket,
 			Filename:    header.filename,
 			ContentType: header.contentType,

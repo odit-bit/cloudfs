@@ -38,7 +38,7 @@ func (store *aferoBlob) GetUsage(ctx context.Context, bucket string) (int64, err
 // ObjectIterator implements service.BlobStore.
 func (store *aferoBlob) ObjectIterator(ctx context.Context, bucket string, limit int, lastFilename string) *Iterator {
 	dirPath := bucket
-	c := make(chan *ObjectInfo)
+	c := make(chan *Info)
 	if ok, _ := afero.DirExists(store.Fs, dirPath); !ok {
 		close(c)
 		return &Iterator{
@@ -73,7 +73,7 @@ func (store *aferoBlob) ObjectIterator(ctx context.Context, bucket string, limit
 				break
 			}
 
-			info := &ObjectInfo{
+			info := &Info{
 				Bucket:       bucket,
 				Filename:     info.Name(),
 				ContentType:  "",
@@ -105,7 +105,7 @@ func (store *aferoBlob) Delete(ctx context.Context, userID, filename string) err
 	return store.Fs.Remove(fileKey)
 }
 
-func (store *aferoBlob) Get(ctx context.Context, userID string, filename string) (*ObjectInfo, error) {
+func (store *aferoBlob) Get(ctx context.Context, userID string, filename string) (*Object, error) {
 	fileKey := filepath.Join(userID, filename)
 	ok, err := afero.Exists(store.Fs, fileKey)
 	if err != nil {
@@ -124,18 +124,22 @@ func (store *aferoBlob) Get(ctx context.Context, userID string, filename string)
 		return nil, err
 	}
 
-	return &ObjectInfo{
-		Bucket:       userID,
-		Filename:     filename,
-		ContentType:  "",
-		Sum:          "",
-		Size:         stat.Size(),
-		LastModified: stat.ModTime(),
-		Data:         f,
-	}, nil
+	obj := &Object{
+		Info: Info{
+			Bucket:       userID,
+			Filename:     filename,
+			ContentType:  "",
+			Sum:          "",
+			Size:         stat.Size(),
+			LastModified: stat.ModTime(),
+		},
+		Data: f,
+	}
+
+	return obj, nil
 }
 
-func (store *aferoBlob) Put(ctx context.Context, userID string, filename string, reader io.ReadCloser, size int64, contentType string) (*ObjectInfo, error) {
+func (store *aferoBlob) Put(ctx context.Context, userID string, filename string, reader io.ReadCloser, size int64, contentType string) (*Info, error) {
 	fileKey := filepath.Join(userID, filename)
 	//optimis path
 	ok, err := afero.Exists(store.Fs, userID)
@@ -163,7 +167,7 @@ func (store *aferoBlob) Put(ctx context.Context, userID string, filename string,
 
 	sum := hex.EncodeToString(hasher.Sum(nil))
 	stat, _ := f.Stat()
-	return &ObjectInfo{
+	return &Info{
 		Bucket:       userID,
 		Filename:     filename,
 		ContentType:  contentType,

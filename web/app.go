@@ -16,7 +16,6 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/dustin/go-humanize"
-	"github.com/odit-bit/cloudfs/internal/blob"
 	"github.com/odit-bit/cloudfs/internal/blob/blobpb"
 	"github.com/odit-bit/cloudfs/internal/user"
 	"github.com/odit-bit/cloudfs/internal/user/userpb"
@@ -132,7 +131,7 @@ func (a *App) auth(loginRedirectURL string) func(http.Handler) http.Handler {
 			v := a.session.Get(r.Context(), Session_Account)
 			acc, ok := v.(*account)
 			if !ok {
-				a.logger.Debug("session return invalid account (unauthorized): %T", v)
+				a.logger.Debugf("session return invalid account (unauthorized): %T \n", v)
 				http.Redirect(w, r, loginRedirectURL, http.StatusSeeOther)
 				return
 			}
@@ -243,13 +242,13 @@ func (v *App) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// CANDIDATE TO HTMX SSE
-	var objects []blob.ObjectInfo
+	var objects []component.Object
 	for obj := range c {
 		if obj.Err() != nil {
 			v.serviceErr(w, r, obj.Err())
 			break
 		}
-		objects = append(objects, blob.ObjectInfo{
+		objects = append(objects, component.Object{
 			Bucket:       obj.Bucket,
 			Filename:     obj.Filename,
 			ContentType:  obj.ContentType,

@@ -82,7 +82,7 @@ func (s *MinioAdapter) Delete(ctx context.Context, bucketName, key string) error
 	return s.minioCli.RemoveObject(ctx, bucketName, key, minio.RemoveObjectOptions{})
 }
 
-func (s *MinioAdapter) Put(ctx context.Context, bucketName, key string, file io.ReadCloser, size int64, contentType string) (*blob.ObjectInfo, error) {
+func (s *MinioAdapter) Put(ctx context.Context, bucketName, key string, file io.ReadCloser, size int64, contentType string) (*blob.Info, error) {
 	info, err := s.put(ctx, bucketName, key, file, size, contentType)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (s *MinioAdapter) Put(ctx context.Context, bucketName, key string, file io.
 	return info, nil
 }
 
-func (s *MinioAdapter) put(ctx context.Context, bucketName, key string, file io.ReadCloser, size int64, contentType string) (*blob.ObjectInfo, error) {
+func (s *MinioAdapter) put(ctx context.Context, bucketName, key string, file io.ReadCloser, size int64, contentType string) (*blob.Info, error) {
 	defer file.Close()
 
 	if ok, err := s.minioCli.BucketExists(ctx, bucketName); !ok {
@@ -102,30 +102,30 @@ func (s *MinioAdapter) put(ctx context.Context, bucketName, key string, file io.
 		return nil, err
 	}
 
-	info, err := s.minioCli.PutObject(ctx, bucketName, key, file, size, minio.PutObjectOptions{
+	res, err := s.minioCli.PutObject(ctx, bucketName, key, file, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	obj := blob.ObjectInfo{
+	info := blob.Info{
 		Bucket:       bucketName,
 		Filename:     key,
 		ContentType:  contentType,
-		Sum:          info.ChecksumSHA256,
-		Size:         info.Size,
-		LastModified: info.LastModified,
+		Sum:          res.ChecksumSHA256,
+		Size:         res.Size,
+		LastModified: res.LastModified,
 		// Reader:       nil,
 	}
-	return &obj, nil
+	return &info, nil
 }
 
 func (s *MinioAdapter) GetUsage(ctx context.Context, bucket string) (int64, error) {
 	return 0, fmt.Errorf("quota is not implemented")
 }
 
-func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*blob.ObjectInfo, error) {
+func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*blob.Object, error) {
 	// stat, err := s.minioCli.StatObject(ctx, bucketName, filename, minio.GetObjectOptions{})
 
 	data, err := s.minioCli.GetObject(ctx, bucketName, filename, minio.GetObjectOptions{})
@@ -138,7 +138,7 @@ func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*b
 		return nil, err
 	}
 
-	var objInfo blob.ObjectInfo
+	var objInfo blob.Object
 	objInfo.Bucket = bucketName
 	objInfo.Filename = stat.Key
 	objInfo.ContentType = stat.ContentType
@@ -149,12 +149,12 @@ func (s *MinioAdapter) Get(ctx context.Context, bucketName, filename string) (*b
 	return &objInfo, nil
 }
 
-func (s *MinioAdapter) Info(ctx context.Context, bucketName, fileName string) (*blob.ObjectInfo, error) {
+func (s *MinioAdapter) Info(ctx context.Context, bucketName, fileName string) (*blob.Info, error) {
 	stat, err := s.minioCli.StatObject(ctx, bucketName, fileName, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
-	var objInfo blob.ObjectInfo
+	var objInfo blob.Info
 	objInfo.Bucket = bucketName
 	objInfo.Filename = stat.Key
 	objInfo.ContentType = stat.ContentType
@@ -177,11 +177,11 @@ func (s *MinioAdapter) ObjectIterator(ctx context.Context, bucketName string, li
 		StartAfter: lastFilename,
 	})
 
-	objC := make(chan *blob.ObjectInfo)
+	objC := make(chan *blob.Info)
 
 	go func() {
 		for c := range res {
-			obj := &blob.ObjectInfo{}
+			obj := &blob.Info{}
 			//NOTE: return minio.ObjectInfo only 4 field that has value,
 			//see https://min.io/docs/minio/linux/developers/go/API.html#ListObjects
 			obj.Filename = c.Key

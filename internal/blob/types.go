@@ -14,23 +14,29 @@ func (f ShareFunc) GetURL(ctx context.Context, expiration time.Duration) (*url.U
 }
 
 // represent object
-type ObjectInfo struct {
+type Info struct {
 	Bucket       string
 	Filename     string
 	ContentType  string
 	Sum          string
 	Size         int64
 	LastModified time.Time
-	// Reader       Reader
-	Data io.ReadCloser
+	// Data io.ReadCloser
+}
+
+type Data io.ReadCloser
+
+type Object struct {
+	Info
+	Data
 }
 
 //////////
 
 type Iterator struct {
 	UserID string
-	C      <-chan *ObjectInfo
-	obj    *ObjectInfo
+	C      <-chan *Info
+	obj    *Info
 	err    error
 }
 
@@ -44,7 +50,7 @@ func (li *Iterator) Next() bool {
 	return true
 }
 
-func (li *Iterator) Value() *ObjectInfo {
+func (li *Iterator) Value() *Info {
 	return li.obj
 }
 

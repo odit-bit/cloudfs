@@ -43,14 +43,14 @@ func Test_afero(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer actual.Data.Close()
+	// defer actual.Data.Close()
 	assert.Equal(t, input.filename, info.Filename)
 	data, _ := io.ReadAll(actual.Data)
 	assert.Equal(t, input.data, data)
 
 	// list
 	iter := v.ObjectIterator(ctx, input.bucket, 1000, "")
-	list := []*ObjectInfo{}
+	list := []*Info{}
 	for obj := range iter.C {
 		list = append(list, obj)
 	}
