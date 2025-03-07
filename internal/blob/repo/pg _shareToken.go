@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"io"
 
 	"github.com/odit-bit/cloudfs/internal/blob"
 )
@@ -100,13 +102,9 @@ func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, b
 
 // GetByBucket implements blob.TokenStorer.
 func (p *pgShareToken) GetByFilename(ctx context.Context, filename string) (*blob.Token, bool, error) {
-	query := `
-		SELECT * FROM object_tokens
-		WHERE filename = $1
-		;
-	`
+
 	tkn := &blob.Token{}
-	err := p.stmts.withFilenameStmt.QueryRowContext(ctx, query, filename).Scan(
+	err := p.stmts.withFilenameStmt.QueryRowContext(ctx, filename).Scan(
 		&tkn.Key,
 		&tkn.Bucket,
 		&tkn.Filename,
@@ -144,13 +142,16 @@ func (p *pgShareToken) Put(ctx context.Context, token *blob.Token) blob.OpErr {
 type queryStmt struct {
 	withFilenameStmt *sql.Stmt
 	withTokenKeyStmt *sql.Stmt
+	closer           []io.Closer
 }
 
 func (q *queryStmt) Close() error {
-	return errors.Join(
-		q.withFilenameStmt.Close(),
-		q.withTokenKeyStmt.Close(),
-	)
+	var err error
+	for _, closer := range q.closer {
+		err = errors.Join(err, closer.Close())
+	}
+
+	return err
 }
 
 func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
@@ -164,7 +165,8 @@ func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
 `
 	withFilename, err := db.Prepare(query)
 	if err != nil {
-		return nil, err
+		withFilename.Close()
+		return nil, fmt.Errorf("failed to prepare filename statement: %w", err)
 	}
 
 	// withTokenKey
@@ -176,12 +178,13 @@ func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
 
 	withId, err := db.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare tokenKey statement: %w", err)
 	}
 
 	qStmt := queryStmt{
 		withFilenameStmt: withFilename,
 		withTokenKeyStmt: withId,
+		closer:           []io.Closer{withFilename, withId},
 	}
 	return &qStmt, nil
 }
