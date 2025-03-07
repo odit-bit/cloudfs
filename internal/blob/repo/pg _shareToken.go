@@ -65,24 +65,6 @@ func (p *pgShareToken) Delete(ctx context.Context, filename string) error {
 
 // Get implements blob.TokenStorer.
 func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, bool, error) {
-	// query := `
-	// 	SELECT * FROM object_tokens
-	// 	WHERE token_key = $1
-	// 	;
-	// `
-
-	// tkn := &blob.Token{}
-	// err := p.db.QueryRowContext(ctx, query, tokenKey).Scan(
-	// 	&tkn.Key,
-	// 	&tkn.Bucket,
-	// 	&tkn.Filename,
-	// 	&tkn.Expire,
-	// )
-	// if err != nil {
-	// 	if err == sql.ErrNoRows {
-	// 		return nil, false, nil
-	// 	}
-	// }
 
 	tkn := &blob.Token{}
 	err := p.stmts.withTokenKeyStmt.QueryRowContext(ctx, tokenKey).Scan(
@@ -95,6 +77,7 @@ func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, b
 		if err == sql.ErrNoRows {
 			return nil, false, nil
 		}
+		return nil, false, err
 	}
 
 	return tkn, true, nil
@@ -165,7 +148,7 @@ func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
 `
 	withFilename, err := db.Prepare(query)
 	if err != nil {
-		withFilename.Close()
+
 		return nil, fmt.Errorf("failed to prepare filename statement: %w", err)
 	}
 
@@ -178,6 +161,8 @@ func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
 
 	withId, err := db.Prepare(query)
 	if err != nil {
+		//close preceeded stmt
+		withFilename.Close()
 		return nil, fmt.Errorf("failed to prepare tokenKey statement: %w", err)
 	}
 
