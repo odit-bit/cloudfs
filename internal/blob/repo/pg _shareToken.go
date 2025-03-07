@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/odit-bit/cloudfs/internal/blob"
 )
@@ -10,7 +11,8 @@ import (
 var _ blob.TokenStorer = (*pgShareToken)(nil)
 
 type pgShareToken struct {
-	db *sql.DB
+	db    *sql.DB
+	stmts *queryStmt
 }
 
 func (p *pgShareToken) migrate(ctx context.Context) error {
@@ -28,11 +30,24 @@ func (p *pgShareToken) migrate(ctx context.Context) error {
 }
 
 func NewPGShareToken(ctx context.Context, db *sql.DB) (*pgShareToken, error) {
-	pg := pgShareToken{db: db}
+	stmt, err := prepareQueryStmt(db)
+	if err != nil {
+		return nil, err
+	}
+
+	pg := pgShareToken{
+		db:    db,
+		stmts: stmt,
+	}
 	if err := pg.migrate(ctx); err != nil {
 		return nil, err
 	}
 	return &pg, nil
+}
+
+// release resources like stmt, not the db
+func (p *pgShareToken) Close() error {
+	return p.stmts.Close()
 }
 
 // Delete implements blob.TokenStorer.
@@ -48,14 +63,27 @@ func (p *pgShareToken) Delete(ctx context.Context, filename string) error {
 
 // Get implements blob.TokenStorer.
 func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, bool, error) {
-	query := `
-		SELECT * FROM object_tokens
-		WHERE token_key = $1
-		;
-	`
+	// query := `
+	// 	SELECT * FROM object_tokens
+	// 	WHERE token_key = $1
+	// 	;
+	// `
+
+	// tkn := &blob.Token{}
+	// err := p.db.QueryRowContext(ctx, query, tokenKey).Scan(
+	// 	&tkn.Key,
+	// 	&tkn.Bucket,
+	// 	&tkn.Filename,
+	// 	&tkn.Expire,
+	// )
+	// if err != nil {
+	// 	if err == sql.ErrNoRows {
+	// 		return nil, false, nil
+	// 	}
+	// }
 
 	tkn := &blob.Token{}
-	err := p.db.QueryRowContext(ctx, query, tokenKey).Scan(
+	err := p.stmts.withTokenKeyStmt.QueryRowContext(ctx, tokenKey).Scan(
 		&tkn.Key,
 		&tkn.Bucket,
 		&tkn.Filename,
@@ -66,6 +94,7 @@ func (p *pgShareToken) Get(ctx context.Context, tokenKey string) (*blob.Token, b
 			return nil, false, nil
 		}
 	}
+
 	return tkn, true, nil
 }
 
@@ -77,7 +106,7 @@ func (p *pgShareToken) GetByFilename(ctx context.Context, filename string) (*blo
 		;
 	`
 	tkn := &blob.Token{}
-	err := p.db.QueryRowContext(ctx, query, filename).Scan(
+	err := p.stmts.withFilenameStmt.QueryRowContext(ctx, query, filename).Scan(
 		&tkn.Key,
 		&tkn.Bucket,
 		&tkn.Filename,
@@ -110,4 +139,49 @@ func (p *pgShareToken) Put(ctx context.Context, token *blob.Token) blob.OpErr {
 		return blob.NewException(err)
 	}
 	return nil
+}
+
+type queryStmt struct {
+	withFilenameStmt *sql.Stmt
+	withTokenKeyStmt *sql.Stmt
+}
+
+func (q *queryStmt) Close() error {
+	return errors.Join(
+		q.withFilenameStmt.Close(),
+		q.withTokenKeyStmt.Close(),
+	)
+}
+
+func prepareQueryStmt(db *sql.DB) (*queryStmt, error) {
+	var query string
+
+	// withFilename
+	query = `
+	SELECT * FROM object_tokens
+	WHERE filename = $1
+	;
+`
+	withFilename, err := db.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+
+	// withTokenKey
+	query = `
+		SELECT * FROM object_tokens
+		WHERE token_key = $1
+		;
+	`
+
+	withId, err := db.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+
+	qStmt := queryStmt{
+		withFilenameStmt: withFilename,
+		withTokenKeyStmt: withId,
+	}
+	return &qStmt, nil
 }
